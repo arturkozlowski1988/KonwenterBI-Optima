@@ -1,0 +1,8 @@
+{
+  "server": "SERWEROPTIMA\\SUL02",
+  "database": "CDN_Ulex_2018_temp",
+  "connection_name": "Ulex_2018_temp",
+  "mode": "auto",
+  "last_sql_path": "",
+  "debug": "true"
+}

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "konwerter-bi"
+version = "2.4.1"
+description = "SQL/XML conversion tools and GUI for reporting"
+authors = [ { name = "Your Name", email = "you@example.com" } ]
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+
+[project.urls]
+Homepage = "https://example.com/konwerter-bi"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-q"
+testpaths = ["."]

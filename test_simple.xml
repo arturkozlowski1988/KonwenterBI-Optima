@@ -1,0 +1,53 @@
+<ReportsList xmlns="http://schemas.datacontract.org/2004/07/Comarch.Msp.ReportsBook.BusinessLogic" xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+    <Reports xmlns:a="http://schemas.datacontract.org/2004/07/Comarch.Msp.ReportsBook.BusinessInterface.Entities">
+        <a:Report i:type="a:MdxSqlDevXpressReport">
+            <a:catalogName></a:catalogName>
+            <a:createdOn>2025-10-28T19:57:57.671</a:createdOn>
+            <a:cubeName/>
+            <a:definitions xmlns:b="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+                <b:KeyValueOfReportDataTypeReportDataBrNSYbaE>
+                    <b:Key>MdxQuery</b:Key>
+                    <b:Value>
+                        <a:binaryData/>
+                        <a:textData>SELECT 1 AS [Jedynka];&#xD;
+</a:textData>
+                        <a:timestamp/>
+                        <a:type>MdxQuery</a:type>
+                    </b:Value>
+                </b:KeyValueOfReportDataTypeReportDataBrNSYbaE>
+                <b:KeyValueOfReportDataTypeReportDataBrNSYbaE>
+                    <b:Key>SubCube</b:Key>
+                    <b:Value>
+                        <a:binaryData/>
+                        <a:textData/>
+                        <a:timestamp/>
+                        <a:type>SubCube</a:type>
+                    </b:Value>
+                </b:KeyValueOfReportDataTypeReportDataBrNSYbaE>
+            </a:definitions>
+            <a:description></a:description>
+            <a:id>8790</a:id>
+            <a:isPredefinedReport>false</a:isPredefinedReport>
+            <a:language>pl-PL</a:language>
+            <a:mainLinkName>test_simple</a:mainLinkName>
+            <a:modifiedOn>2025-10-28T19:57:57.671</a:modifiedOn>
+            <a:path xmlns:b="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+                <b:string>Raporty Zaimportowane</b:string>
+            </a:path>
+            <a:predefinedReport i:nil="true"/>
+            <a:serverName></a:serverName>
+            <a:sourceDbType>Main</a:sourceDbType>
+            <a:standardReportHash i:nil="true"/>
+            <a:standardReportId i:nil="true"/>
+            <a:standardReportVersion i:nil="true"/>
+            <a:type>DevXpressMdxSql</a:type>
+            <a:useDefaultConnection>true</a:useDefaultConnection>
+            <a:useInMemory>true</a:useInMemory>
+            <a:viewType i:nil="true"/>
+            <a:webServicePort>80</a:webServicePort>
+            <a:contexts/>
+      <a:connections/>
+        </a:Report>
+    </Reports>
+    <UsePasswordsEncryption>true</UsePasswordsEncryption>
+</ReportsList>

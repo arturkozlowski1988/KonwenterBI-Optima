@@ -1,0 +1,941 @@
+<ReportsList xmlns="http://schemas.datacontract.org/2004/07/Comarch.Msp.ReportsBook.BusinessLogic" xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+    <Reports xmlns:a="http://schemas.datacontract.org/2004/07/Comarch.Msp.ReportsBook.BusinessInterface.Entities">
+        <a:Report i:type="a:MdxSqlDevXpressReport">
+            <a:catalogName>CDN_Ulex_2018_temp</a:catalogName>
+            <a:createdOn>2025-10-28T19:32:55.028</a:createdOn>
+            <a:cubeName/>
+            <a:definitions xmlns:b="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+                <b:KeyValueOfReportDataTypeReportDataBrNSYbaE>
+                    <b:Key>MdxQuery</b:Key>
+                    <b:Value>
+                        <a:binaryData/>
+                        <a:textData>/*&#xD;
+* Raport Księgowości (ER) &#xD;
+* Wersja raportu: 38.0&#xD;
+* Wersja baz OPTIMY: 2025.5000&#xD;
+* Wersja aplikacji OPTIMA: 2025.3.0&#xD;
+*/&#xD;
+&#xD;
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;&#xD;
+&#xD;
+--Połączenie do tabeli stawek i operatorów&#xD;
+DECLARE @serwerKonf varchar(max);&#xD;
+DECLARE @bazaKonf varchar(max);&#xD;
+DECLARE @Stawki varchar(max), @Stawki2 varchar(max), @Operatorzy varchar(max), @sql varchar(max);&#xD;
+DECLARE @Bazy varchar(max);&#xD;
+SET @serwerKonf = (SELECT SYS_Wartosc FROM CDN.SystemCDN WHERE SYS_ID = 1001)&#xD;
+SET @bazaKonf = (SELECT SYS_Wartosc FROM CDN.SystemCDN WHERE SYS_ID = 1002)&#xD;
+SET @Bazy = &#x27;[&#x27; + @serwerKonf + &#x27;].[&#x27; + @bazaKonf + &#x27;].[CDN].[Bazy]&#x27; &#xD;
+&#xD;
+SET @Stawki2 = &#x27;[&#x27; + @serwerKonf + &#x27;].[&#x27; + @bazaKonf + &#x27;].[CDN].[CfgWartosci]&#x27;&#xD;
+SET @Operatorzy = &#x27;[&#x27; + @serwerKonf + &#x27;].[&#x27; + @bazaKonf + &#x27;].[CDN].[Operatorzy]&#x27; &#xD;
+&#xD;
+--Właściwe zapytanie&#xD;
+SET @sql =&#xD;
+&#x27;SELECT * INTO #tmpStawki FROM [&#x27; +&#xD;
+(SELECT SYS_Wartosc FROM CDN.SystemCDN WHERE SYS_ID = 1001) + &#x27;].[&#x27; + &#xD;
+(SELECT SYS_Wartosc FROM CDN.SystemCDN WHERE SYS_ID = 1002) + &#x27;].[CDN].[CfgKlucze]&#xD;
+&#xD;
+SELECT  BAZ.Baz_Nazwa [Baza Firmowa], &#xD;
+    CASE &#xD;
+     WHEN (MONTH(RYC_DataPrz) = MONTH(GETDATE())-1) AND (YEAR(RYC_DataPrz) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     WHEN ((MONTH(RYC_DataPrz) = 12) AND (MONTH(GETDATE()) = 1)) AND (YEAR(RYC_DataPrz) = YEAR(GETDATE()) - 1) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Przychodu Miesiąc Poprzedni],&#xD;
+   CASE &#xD;
+     WHEN (MONTH(RYC_DataPrz) = MONTH(GETDATE())) AND (YEAR(RYC_DataPrz) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Przychodu Miesiąc Bieżący],&#xD;
+&#xD;
+    CASE &#xD;
+     WHEN (MONTH(RYC_DataWpi) = MONTH(GETDATE())-1) AND (YEAR(RYC_DataWpi) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     WHEN ((MONTH(RYC_DataWpi) = 12) AND (MONTH(GETDATE()) = 1)) AND (YEAR(RYC_DataWpi) = YEAR(GETDATE()) - 1) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Wpisu Miesiąc Poprzedni],&#xD;
+   CASE &#xD;
+     WHEN (MONTH(RYC_DataWpi) = MONTH(GETDATE())) AND (YEAR(RYC_DataWpi) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Wpisu Miesiąc Bieżący],&#xD;
+    RYC_Dokument AS [Dokument Numer], &#xD;
+    ISNULL(RYC_Kategoria , &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Kategoria Opis], CASE WHEN RYC_Bufor = 0  THEN &#x27;&#x27;Ewidencja&#x27;&#x27; ELSE &#x27;&#x27;Bufor&#x27;&#x27; END AS [Ewidencja/Bufor], &#xD;
+    CASE WHEN Kategorie.Kat_KodSzczegol IS NULL THEN &#x27;&#x27;(PUSTA)&#x27;&#x27; ELSE Kategorie.Kat_KodSzczegol END AS [Kategoria Szczegółowa],&#xD;
+    CASE WHEN Kategorie.Kat_KodOgolny IS NULL THEN &#x27;&#x27;(PUSTA)&#x27;&#x27; ELSE Kategorie.Kat_KodOgolny END AS [Kategoria Ogólna],&#xD;
+    ISNULL(op1.Ope_Kod, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) AS [Operator Wprowadzający], ISNULL(op2.Ope_Kod, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) AS [Operator Modyfikujący],&#xD;
+    RYC_Przychod1 AS [Sprzedaż wg Stawki 3], RYC_Przychod2 AS [Sprzedaż wg Stawki 4], RYC_Przychod3 AS [Sprzedaż wg Stawki 5],&#xD;
+    RYC_Przychod4 AS [Sprzedaż wg Stawki 1], RYC_Przychod5 AS [Sprzedaż wg Stawki 2], RYC_Przychod6 AS [Sprzedaż wg Stawki 6],&#xD;
+    RYC_Przychod7 AS [Sprzedaż wg Stawki 7], RYC_Przychod8 AS [Sprzedaż wg Stawki 8], RYC_Przychod9 AS [Sprzedaż wg Stawki 9],&#xD;
+    RYC_Przychod10 AS [Sprzedaż wg Stawki 10], RYC_Przychod11 AS [Sprzedaż wg Stawki 11],&#xD;
+    RYC_Przychod1 + RYC_Przychod2 + RYC_Przychod3 + RYC_Przychod4 + RYC_Przychod5 + RYC_Przychod6 + RYC_Przychod7 + RYC_Przychod8 + RYC_Przychod9 + RYC_Przychod10 + RYC_Przychod11 AS [Przychód],&#xD;
+    (SELECT CFW_Wartosc FROM #tmpStawki&#xD;
+         JOIN &#x27; + @stawki2 + &#x27; ON CFK_CfkId = CFW_CfkId &#xD;
+     WHERE CFK_Nazwa = &#x27;&#x27;Ryczałt 1&#x27;&#x27; AND (RYC_DataPrz BETWEEN CFK_OkresOd AND (CFK_OkresDo - 1))) + &#x27;&#x27;%&#x27;&#x27; AS [Stawka 1 Wartości],&#xD;
+    (SELECT CFW_Wartosc FROM #tmpStawki&#xD;
+         JOIN &#x27; + @stawki2 + &#x27; ON CFK_CfkId = CFW_CfkId &#xD;
+     WHERE CFK_Nazwa = &#x27;&#x27;Ryczałt 2&#x27;&#x27; AND (RYC_DataPrz BETWEEN CFK_OkresOd AND (CFK_OkresDo - 1))) + &#x27;&#x27;%&#x27;&#x27; AS [Stawka 2 Wartości],&#xD;
+    (SELECT CFW_Wartosc FROM #tmpStawki&#xD;
+         JOIN &#x27; + @stawki2 + &#x27; ON CFK_CfkId = CFW_CfkId &#xD;
+     WHERE CFK_Nazwa = &#x27;&#x27;Ryczałt 3&#x27;&#x27; AND (RYC_DataPrz BETWEEN CFK_OkresOd AND (CFK_OkresDo - 1))) + &#x27;&#x27;%&#x27;&#x27; AS [Stawka 3 Wartości],&#xD;
+    (SELECT CFW_Wartosc FROM #tmpStawki&#xD;
+         JOIN &#x27; + @stawki2 + &#x27; ON CFK_CfkId = CFW_CfkId &#xD;
+     WHERE CFK_Nazwa = &#x27;&#x27;Ryczałt 4&#x27;&#x27; AND (RYC_DataPrz BETWEEN CFK_OkresOd AND (CFK_OkresDo - 1))) + &#x27;&#x27;%&#x27;&#x27; AS [Stawka 4 Wartości],            &#xD;
+    (SELECT CFW_Wartosc FROM #tmpStawki&#xD;
+         JOIN &#x27; + @stawki2 + &#x27; ON CFK_CfkId = CFW_CfkId &#xD;
+     WHERE CFK_Nazwa = &#x27;&#x27;Ryczałt 5&#x27;&#x27; AND (RYC_DataPrz BETWEEN CFK_OkresOd AND (CFK_OkresDo - 1))) + &#x27;&#x27;%&#x27;&#x27; AS [Stawka 5 Wartości],&#xD;
+    (SELECT CFW_Wartosc FROM #tmpStawki&#xD;
+         JOIN &#x27; + @stawki2 + &#x27; ON CFK_CfkId = CFW_CfkId &#xD;
+     WHERE CFK_Nazwa = &#x27;&#x27;Ryczałt 6&#x27;&#x27; AND (RYC_DataPrz BETWEEN CFK_OkresOd AND (CFK_OkresDo - 1))) + &#x27;&#x27;%&#x27;&#x27; AS [Stawka 6 Wartości],&#xD;
+        (SELECT CFW_Wartosc FROM #tmpStawki&#xD;
+         JOIN &#x27; + @stawki2 + &#x27; ON CFK_CfkId = CFW_CfkId &#xD;
+     WHERE CFK_Nazwa = &#x27;&#x27;Ryczałt 7&#x27;&#x27; AND (RYC_DataPrz BETWEEN CFK_OkresOd AND (CFK_OkresDo - 1))) + &#x27;&#x27;%&#x27;&#x27; AS [Stawka 7 Wartości],&#xD;
+        (SELECT CFW_Wartosc FROM #tmpStawki&#xD;
+         JOIN &#x27; + @stawki2 + &#x27; ON CFK_CfkId = CFW_CfkId &#xD;
+     WHERE CFK_Nazwa = &#x27;&#x27;Ryczałt 8&#x27;&#x27; AND (RYC_DataPrz BETWEEN CFK_OkresOd AND (CFK_OkresDo - 1))) + &#x27;&#x27;%&#x27;&#x27; AS [Stawka 8 Wartości],&#xD;
+        (SELECT CFW_Wartosc FROM #tmpStawki&#xD;
+         JOIN &#x27; + @stawki2 + &#x27; ON CFK_CfkId = CFW_CfkId &#xD;
+     WHERE CFK_Nazwa = &#x27;&#x27;Ryczałt 9&#x27;&#x27; AND (RYC_DataPrz BETWEEN CFK_OkresOd AND (CFK_OkresDo - 1))) + &#x27;&#x27;%&#x27;&#x27; AS [Stawka 9 Wartości],&#xD;
+        (SELECT CFW_Wartosc FROM #tmpStawki&#xD;
+         JOIN &#x27; + @stawki2 + &#x27; ON CFK_CfkId = CFW_CfkId &#xD;
+     WHERE CFK_Nazwa = &#x27;&#x27;Ryczałt 10&#x27;&#x27; AND (RYC_DataPrz BETWEEN CFK_OkresOd AND (CFK_OkresDo - 1))) + &#x27;&#x27;%&#x27;&#x27; AS [Stawka 10 Wartości],&#xD;
+        (SELECT CFW_Wartosc FROM #tmpStawki&#xD;
+         JOIN &#x27; + @stawki2 + &#x27; ON CFK_CfkId = CFW_CfkId &#xD;
+     WHERE CFK_Nazwa = &#x27;&#x27;Ryczałt 11&#x27;&#x27; AND (RYC_DataPrz BETWEEN CFK_OkresOd AND (CFK_OkresDo - 1))) + &#x27;&#x27;%&#x27;&#x27; AS [Stawka 11 Wartości]  &#xD;
+     /*&#xD;
+     ----------DATY POINT&#xD;
+    ,REPLACE(CONVERT(VARCHAR(10), RYC_DataPrz, 111), &#x27;&#x27;/&#x27;&#x27;, &#x27;&#x27;-&#x27;&#x27;) AS [Data Przychodu]&#xD;
+    ,REPLACE(CONVERT(VARCHAR(10), RYC_DataWpi, 111), &#x27;&#x27;/&#x27;&#x27;, &#x27;&#x27;-&#x27;&#x27;) AS [Data Wpisu]&#xD;
+    */&#xD;
+     ----------DATY ANALIZY&#xD;
+    ,REPLACE(CONVERT(VARCHAR(10), RYC_DataPrz, 111), &#x27;&#x27;/&#x27;&#x27;, &#x27;&#x27;-&#x27;&#x27;) AS [Data Przychodu Dzień], YEAR(RYC_DataPrz) AS [Data Przychodu Rok]&#xD;
+    ,DATEPART(quarter, RYC_DataPrz) AS [Data Przychodu Kwartał], MONTH(RYC_DataPrz) AS [Data Przychodu Miesiąc] &#xD;
+    ,(datepart(DY, datediff(d, 0, RYC_DataPrz) / 7 * 7 + 3)+6) / 7 /*DATEPART(isowk, RYC_DataPrz)*/ [Data Przychodu Tydzień Roku]   &#xD;
+    ,REPLACE(CONVERT(VARCHAR(10), RYC_DataWpi, 111), &#x27;&#x27;/&#x27;&#x27;, &#x27;&#x27;-&#x27;&#x27;) AS [Data Wpisu Dzień]&#xD;
+    ,YEAR(RYC_DataWpi) AS [Data Wpisu Rok],     DATEPART(quarter, RYC_DataWpi) AS [Data Wpisu Kwartał], MONTH(RYC_DataWpi) AS [Data Wpisu Miesiąc]&#xD;
+    ,(datepart(DY, datediff(d, 0, RYC_DataWpi) / 7 * 7 + 3)+6) / 7 /*DATEPART(isowk, RYC_DataWpi)*/ [Data Wpisu Tydzień Roku]&#xD;
+    ,GETDATE() [Data Analizy]&#xD;
+FROM CDN.Ryczalt&#xD;
+    LEFT OUTER JOIN CDN.Kategorie Kategorie ON RYC_KatID = Kategorie.Kat_KatID&#xD;
+    LEFT JOIN &#x27; + @Operatorzy + &#x27; op1 ON RYC_OpeZalID = op1.Ope_OpeId&#xD;
+    LEFT JOIN &#x27; + @Operatorzy + &#x27; op2 ON RYC_OpeModID = op2.Ope_OpeId&#xD;
+    LEFT JOIN &#x27;+ @Bazy +&#x27; BAZ ON DB_NAME() = BAZ.Baz_NazwaBazy AND BAZ.Baz_NazwaSerwera = SERVERPROPERTY(&#x27;&#x27;ServerName&#x27;&#x27;) and baz.baz_nieaktywna = 0&#xD;
+WHERE&#xD;
+    RYC_Skreslony = 0&#xD;
+&#xD;
+DROP TABLE #tmpStawki&#x27;&#xD;
+&#xD;
+exec(@sql)&#xD;
+&#xD;
+&#xD;
+&#xD;
+&#xD;
+&#xD;
+&#xD;
+&#xD;
+&#xD;
+</a:textData>
+                        <a:timestamp/>
+                        <a:type>MdxQuery</a:type>
+                    </b:Value>
+                </b:KeyValueOfReportDataTypeReportDataBrNSYbaE>
+                <b:KeyValueOfReportDataTypeReportDataBrNSYbaE>
+                    <b:Key>SubCube</b:Key>
+                    <b:Value>
+                        <a:binaryData/>
+                        <a:textData/>
+                        <a:timestamp/>
+                        <a:type>SubCube</a:type>
+                    </b:Value>
+                </b:KeyValueOfReportDataTypeReportDataBrNSYbaE>
+            </a:definitions>
+            <a:description></a:description>
+            <a:id>6405</a:id>
+            <a:isPredefinedReport>false</a:isPredefinedReport>
+            <a:language>pl-PL</a:language>
+            <a:mainLinkName>Księgowości (ER)</a:mainLinkName>
+            <a:modifiedOn>2025-10-28T19:32:55.028</a:modifiedOn>
+            <a:path xmlns:b="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+                <b:string>Raporty Zaimportowane</b:string>
+            </a:path>
+            <a:predefinedReport i:nil="true"/>
+            <a:serverName>SERWEROPTIMA\SUL02</a:serverName>
+            <a:sourceDbType>Main</a:sourceDbType>
+            <a:standardReportHash i:nil="true"/>
+            <a:standardReportId i:nil="true"/>
+            <a:standardReportVersion i:nil="true"/>
+            <a:type>DevXpressMdxSql</a:type>
+            <a:useDefaultConnection>false</a:useDefaultConnection>
+            <a:useInMemory>true</a:useInMemory>
+            <a:viewType i:nil="true"/>
+            <a:webServicePort>80</a:webServicePort>
+            <a:contexts/>
+      <a:connections>
+                <a:ReportConnection>
+                    <a:biType>0</a:biType>
+                    <a:connectionType>MSSQL_User</a:connectionType>
+                    <a:database>CDN_Ulex_2018_temp</a:database>
+                    <a:isDefault>true</a:isDefault>
+                    <a:isDelated>false</a:isDelated>
+                    <a:name>Ulex_2018_temp</a:name>
+                    <a:openTimeout>-1</a:openTimeout>
+                    <a:password>Sek33MacesM=</a:password>
+                    <a:port>-1</a:port>
+                    <a:queryTimeout>-1</a:queryTimeout>
+                    <a:server>SERWEROPTIMA\SUL02</a:server>
+                    <a:userId/>
+                </a:ReportConnection>
+            </a:connections>
+        </a:Report>
+        <a:Report i:type="a:MdxSqlDevXpressReport">
+            <a:catalogName>CDN_Ulex_2018_temp</a:catalogName>
+            <a:createdOn>2025-10-28T19:32:55.032</a:createdOn>
+            <a:cubeName/>
+            <a:definitions xmlns:b="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+                <b:KeyValueOfReportDataTypeReportDataBrNSYbaE>
+                    <b:Key>MdxQuery</b:Key>
+                    <b:Value>
+                        <a:binaryData/>
+                        <a:textData>/*&#xD;
+* Raport Księgowości (KK) &#xD;
+* Wersja raportu: 38.0&#xD;
+* Wersja baz OPTIMY: 2025.5000&#xD;
+* Wersja aplikacji OPTIMA: 2025.3.0&#xD;
+*/&#xD;
+&#xD;
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;&#xD;
+&#xD;
+DECLARE @String varchar(1024)&#xD;
+DECLARE @Pos int&#xD;
+CREATE TABLE #Keywords (string varchar(100)) &#xD;
+DECLARE @Key varchar(100)&#xD;
+SET @String = @OKRESOBRACHUNKOWY&#xD;
+SET @Pos = 1&#xD;
+WHILE (@Pos &gt; 0)&#xD;
+BEGIN&#xD;
+    SET @Pos = PATINDEX(&#x27;%,%&#x27;, @String)&#xD;
+    SET @Key = SUBSTRING(@String, 0, @Pos)&#xD;
+    IF (@Pos = 0)&#xD;
+        BEGIN&#xD;
+            INSERT INTO #Keywords (string) VALUES(@String)&#xD;
+        END&#xD;
+    ELSE&#xD;
+        BEGIN&#xD;
+            INSERT INTO #Keywords (string) VALUES(@Key)&#xD;
+        END&#xD;
+    SET @String = SUBSTRING(@String, @Pos+1, (SELECT LEN(@String)))&#xD;
+END &#xD;
+&#xD;
+&#xD;
+SELECT *,OOb_OObID oobid INTO  #oob FROM(&#xD;
+SELECT    SUBSTRING(string, 1, CHARINDEX(&#x27;;&#x27;, string) - 1) AS year,&#xD;
+    SUBSTRING(string, CHARINDEX(&#x27;;&#x27;, string) + 1, LEN(string)) AS db  FROM #Keywords &#xD;
+  )OB&#xD;
+  JOIN CDN.OkresyObrach ON OOb_Symbol =  year &#xD;
+  WHERE db = DB_NAME()&#xD;
+&#xD;
+  Drop table #Keywords&#xD;
+&#xD;
+--Wyliczanie poziomów kont&#xD;
+;WITH g(gid, kod, naz, nazB, parId, poziom, nazwa)&#xD;
+AS&#xD;
+(&#xD;
+      SELECT Acc_AccId, Acc_Segment, Acc_Nazwa,  Acc_Nazwa2, Acc_ParId, Acc_Poziom, convert(nvarchar(1024), Acc_Segment) as nazwa&#xD;
+      FROM CDN.Konta&#xD;
+      WHERE Acc_ParId IS NULL AND Acc_OObId IN (SELECT OOBID From #oob)&#xD;
+      &#xD;
+      UNION ALL&#xD;
+      &#xD;
+      SELECT Acc_AccId, Acc_Segment, Acc_Nazwa, Acc_Nazwa2, Acc_ParId, Acc_Poziom, convert(nvarchar(1024), p.nazwa + N&#x27;-&#x27; + c.Acc_Segment) as nazwa&#xD;
+      FROM g p&#xD;
+             JOIN CDN.Konta c ON c.Acc_ParId = p.gid &#xD;
+      WHERE c.Acc_ParId IS NOT NULL AND  C.Acc_OObId IN (SELECT OOBID From #oob)&#xD;
+)     &#xD;
+SELECT * INTO #tmpTwrGr FROM g&#xD;
+&#xD;
+DECLARE @poziom int&#xD;
+DECLARE @poziom_max int&#xD;
+DECLARE @sql nvarchar(max)&#xD;
+SELECT @poziom_max = MAX(poziom) FROM #tmpTwrGr&#xD;
+SET @poziom = @poziom_max&#xD;
+SET @sql = N&#x27;&#x27;&#xD;
+&#xD;
+WHILE @poziom &gt; 0  &#xD;
+BEGIN&#xD;
+       SET @sql = N&#x27;ALTER TABLE #tmpTwrGr ADD Poziom&#x27; + CAST(@poziom AS nvarchar) + N&#x27; nvarchar(50), ONr&#x27; + CAST(@poziom AS nvarchar) + N&#x27; nvarchar(50), Nazwa&#x27; + CAST(@poziom AS nvarchar) + N&#x27; nvarchar(4000), NazwaB&#x27; + CAST(@poziom AS nvarchar) + N&#x27; nvarchar(4000)&#x27; &#xD;
+    EXEC(@sql)&#xD;
+&#xD;
+    &#xD;
+    IF @poziom = @poziom_max &#xD;
+             BEGIN&#xD;
+                    SET @sql = N&#x27;UPDATE #tmpTwrGr&#xD;
+                           SET ONr&#x27; + CAST(@poziom AS nvarchar) +  &#x27;= parId &#x27;&#xD;
+                    EXEC(@sql)&#xD;
+                    &#xD;
+                    SET @sql = N&#x27;UPDATE #tmpTwrGr&#xD;
+                           SET Poziom&#x27; + CAST(@poziom AS nvarchar) + &#x27; = CASE WHEN &#x27; + CAST(@poziom AS nvarchar) + &#x27; &gt; poziom THEN &#x27;&#x27;(&#x27;&#x27; + kod + &#x27;&#x27;)&#x27;&#x27; ELSE kod END&#x27;&#xD;
+                    EXEC(@sql)&#xD;
+                    &#xD;
+                    SET @sql = N&#x27;UPDATE #tmpTwrGr&#xD;
+                           SET Nazwa&#x27; + CAST(@poziom AS nvarchar) + &#x27; = CASE WHEN &#x27; + CAST(@poziom AS nvarchar) + &#x27; &gt; poziom THEN &#x27;&#x27;(&#x27;&#x27; + naz + &#x27;&#x27;)&#x27;&#x27; ELSE naz END&#x27;&#xD;
+                    EXEC(@sql)&#xD;
+&#xD;
+                    SET @sql = N&#x27;UPDATE #tmpTwrGr&#xD;
+                           SET NazwaB&#x27; + CAST(@poziom AS nvarchar) + &#x27; = CASE WHEN &#x27; + CAST(@poziom AS nvarchar) + &#x27; &gt; poziom THEN &#x27;&#x27;(&#x27;&#x27; + nazB + &#x27;&#x27;)&#x27;&#x27; ELSE nazB END&#x27;&#xD;
+                    EXEC(@sql)&#xD;
+&#xD;
+             END&#xD;
+    ELSE&#xD;
+             BEGIN &#xD;
+             SET @sql = N&#x27;UPDATE c&#xD;
+                           SET c.Poziom&#x27; + CAST(@poziom AS nvarchar) + N&#x27; = (&#xD;
+                                  CASE WHEN c.poziom =&#x27; + CAST(@poziom AS nvarchar) + N&#x27; THEN CAST(c.kod AS nvarchar)&#xD;
+                                        WHEN c.poziom &lt;&#x27; + CAST(@poziom AS nvarchar) + N&#x27; THEN &#x27;&#x27;(&#x27;&#x27; + CAST(c.kod AS nvarchar) + &#x27;&#x27;)&#x27;&#x27;&#xD;
+                                        WHEN p.poziom &lt;&#x27; + CAST(@poziom AS nvarchar) + N&#x27; THEN &#x27;&#x27;(&#x27;&#x27; + CAST(p.kod AS nvarchar) + &#x27;&#x27;)&#x27;&#x27;&#xD;
+                                  ELSE p.kod END)  &#xD;
+                           FROM #tmpTwrGr c&#xD;
+                           LEFT JOIN #tmpTwrGr p&#xD;
+                           ON c.ONr&#x27; + CAST(@poziom + 1 AS nvarchar) + &#x27;= p.gid &#x27;&#xD;
+                    EXEC(@sql)&#xD;
+                    &#xD;
+                    SET @sql = N&#x27;UPDATE c&#xD;
+                           SET c.Nazwa&#x27; + CAST(@poziom AS nvarchar) + N&#x27; = (&#xD;
+                                  CASE WHEN c.poziom =&#x27; + CAST(@poziom AS nvarchar) + N&#x27; THEN c.naz&#xD;
+                                        WHEN c.poziom &lt;&#x27; + CAST(@poziom AS nvarchar) + N&#x27; THEN &#x27;&#x27;(&#x27;&#x27; + c.naz + &#x27;&#x27;)&#x27;&#x27;&#xD;
+                                        WHEN p.poziom &lt;&#x27; + CAST(@poziom AS nvarchar) + N&#x27; THEN &#x27;&#x27;(&#x27;&#x27; + p.naz + &#x27;&#x27;)&#x27;&#x27;&#xD;
+                                  ELSE p.naz END)  ,&#xD;
+                                  c.NazwaB&#x27; + CAST(@poziom AS nvarchar) + N&#x27; = (&#xD;
+                                  CASE WHEN c.poziom =&#x27; + CAST(@poziom AS nvarchar) + N&#x27; THEN c.nazB&#xD;
+                                        WHEN c.poziom &lt;&#x27; + CAST(@poziom AS nvarchar) + N&#x27; THEN &#x27;&#x27;(&#x27;&#x27; + c.nazB + &#x27;&#x27;)&#x27;&#x27;&#xD;
+                                        WHEN p.poziom &lt;&#x27; + CAST(@poziom AS nvarchar) + N&#x27; THEN &#x27;&#x27;(&#x27;&#x27; + p.nazB + &#x27;&#x27;)&#x27;&#x27;&#xD;
+                                  ELSE p.nazB END)  &#xD;
+                           FROM #tmpTwrGr c&#xD;
+                           LEFT JOIN #tmpTwrGr p&#xD;
+                           ON c.ONr&#x27; + CAST(@poziom + 1 AS nvarchar) + &#x27;= p.gid &#x27;&#xD;
+                    EXEC(@sql)&#xD;
+       &#xD;
+                    SET @sql = N&#x27;UPDATE c&#xD;
+                           SET c.ONr&#x27; + CAST(@poziom AS nvarchar) + N&#x27; = (&#xD;
+                                  CASE WHEN c.poziom &lt;=&#x27; + CAST(@poziom AS nvarchar) + N&#x27; THEN CAST(c.parId AS nvarchar)&#xD;
+                                  ELSE CAST(p.parId AS nvarchar) END)  &#xD;
+                           FROM #tmpTwrGr c&#xD;
+                           LEFT JOIN #tmpTwrGr p&#xD;
+                           ON c.ONr&#x27; + CAST(@poziom + 1 AS nvarchar) + &#x27;= p.gid &#x27;&#xD;
+                           EXEC(@sql)&#xD;
+             END&#xD;
+    SET @poziom = @poziom - 1&#xD;
+END&#xD;
+&#xD;
+declare @select varchar(max), @select2 varchar(max), @select3 varchar(max);&#xD;
+declare @kolumny varchar(max), @kolumny2 varchar(max);&#xD;
+declare @i int&#xD;
+&#xD;
+set @kolumny = &#x27;&#x27;&#xD;
+set @kolumny2 = &#x27;&#x27;&#xD;
+&#xD;
+set @i=1&#xD;
+if @i&lt;=@poziom_max  &#xD;
+begin&#xD;
+       set @kolumny = &#x27;, SUBSTRING(Poz.Poziom1, 1, 1) AS [Konto Grupa]&#x27;&#xD;
+       set @kolumny2 = &#x27;, [Konto Grupa]&#x27;&#xD;
+end&#xD;
+while (@i&lt;=@poziom_max)&#xD;
+begin&#xD;
+       set @kolumny = @kolumny + &#x27;, CASE WHEN Poz.Poziom&#x27; +LTRIM(@i) + &#x27; IS NULL THEN &#x27;&#x27;(NIEPRZYPISANE)&#x27;&#x27; ELSE Poz.Poziom&#x27; + LTRIM(@i) + &#x27; END [Konto Struktura Poziom &#x27; + LTRIM(@i) + &#x27;] &#x27; +&#xD;
+                                                 &#x27;, CASE WHEN Poz.Nazwa&#x27; +LTRIM(@i) + &#x27; IS NULL THEN &#x27;&#x27;(NIEPRZYPISANE)&#x27;&#x27; ELSE Poz.Nazwa&#x27; + LTRIM(@i) + &#x27; END [Konto Nazwa Poziom &#x27; + LTRIM(@i) + &#x27;] &#x27; +&#xD;
+                                                 &#x27;, CASE WHEN Poz.NazwaB&#x27; +LTRIM(@i) + &#x27; IS NULL THEN &#x27;&#x27;(NIEPRZYPISANE)&#x27;&#x27; ELSE Poz.NazwaB&#x27; + LTRIM(@i) + &#x27; END [Konto Nazwa2 Poziom &#x27; + LTRIM(@i) + &#x27;] &#x27;&#xD;
+       set @kolumny2 = @kolumny2 + &#x27;, [Konto Struktura Poziom &#x27; + LTRIM(@i) + &#x27;] &#x27; + &#x27;, [Konto Nazwa Poziom &#x27; + LTRIM(@i) + &#x27;] &#x27; + &#x27;, [Konto Nazwa2 Poziom &#x27; + LTRIM(@i) + &#x27;] &#x27;&#xD;
+       set @i = @i + 1&#xD;
+end&#xD;
+&#xD;
+--Połączenie do tabeli operatorów&#xD;
+DECLARE @serwerKonf varchar(max);&#xD;
+DECLARE @bazaKonf varchar(max);&#xD;
+DECLARE @bazaFirmowa varchar(max);&#xD;
+DECLARE @Operatorzy varchar(max);&#xD;
+DECLARE @Bazy varchar(max);&#xD;
+SET @serwerKonf = (SELECT SYS_Wartosc FROM CDN.SystemCDN WHERE SYS_ID = 1001)&#xD;
+SET @bazaKonf = (SELECT SYS_Wartosc FROM CDN.SystemCDN WHERE SYS_ID = 1002)&#xD;
+SET @bazaFirmowa = (SELECT SYS_Wartosc FROM CDN.SystemCDN WHERE SYS_ID = 1)&#xD;
+SET @Operatorzy = &#x27;[&#x27; + @serwerKonf + &#x27;].[&#x27; + @bazaKonf + &#x27;].[CDN].[Operatorzy]&#x27;  &#xD;
+SET @Bazy = &#x27;[&#x27; + @serwerKonf + &#x27;].[&#x27; + @bazaKonf + &#x27;].[CDN].[Bazy]&#x27; &#xD;
+&#xD;
+SET @select = &#xD;
+&#x27;Declare @Wal VarChar(3); Set @Wal = cdn.Waluta(&#x27;&#x27;&#x27;&#x27;)&#xD;
+SELECT &#xD;
+    [Baza Firmowa],&#xD;
+    [Okres Obrachunkowy], &#xD;
+    [Dokument Numer], &#xD;
+    [Dokument Element Numer], [Dokument Bufor] [Zatwierdzone/Bufor], [Dziennik], [Dziennik Numer], [Identyfikator Księgowy],  [Konto Pełny Numer], &#xD;
+    [Konto Przeciwstawne], [Kategoria Szczegółowa z Elementu], [Kategoria Szczegółowa z Nagłówka], [Kategoria Ogólna z Elementu], [Kategoria Ogólna z Nagłówka],&#xD;
+    [Dokument Opis z Elementu], [Dokument Opis z Nagłówka],&#xD;
+    [Podmiot Pierwotny Typ], &#xD;
+    [Podmiot Pierwotny Kod],    &#xD;
+    [Podmiot Pierwotny Nazwa], &#xD;
+    [Podmiot Pierwotny NIP],&#xD;
+    [Podmiot Pierwotny Kraj], [Podmiot Pierwotny Województwo], [Podmiot Pierwotny Powiat],  [Podmiot Pierwotny Gmina], [Podmiot Pierwotny Miasto], [Podmiot Pierwotny z Pozycji],&#xD;
+    [Podmiot Typ], [Podmiot Nazwa],&#xD;
+    [Podmiot Kod], &#xD;
+    [Podmiot NIP],&#xD;
+    [Podmiot Kraj], [Podmiot Województwo],&#xD;
+    [Podmiot Powiat], [Podmiot Gmina],[Podmiot Miasto], [Podmiot z Pozycji],&#xD;
+    [Operator Wprowadzający],[Operator Modyfikujący],  &#xD;
+    [Rodzaj] [Bilans Otwarcia], [Konto Typ] [Typ Konta], [Konto Typy] [Typy Kont], [Kontrola budżetu] [Kontrola Budżetu], [Konto Rozrachunkowe], [Waluta],&#xD;
+    [Obroty Winien] [Obroty Wn], [Obroty Ma], [Obroty Winien Waluta] [Obroty Wn Waluta], [Obroty Ma Waluta],    &#xD;
+    [Bilans Otwarcia Ma], [Bilans Otwarcia Winien] [Bilans Otwarcia Wn], [Bilans Otwarcia Ma Waluta], [Bilans Otwarcia Winien Waluta] [Bilans Otwarcia Wn Waluta],&#xD;
+    [Plan Wn], [Plan Ma] &#xD;
+    /*&#xD;
+    ----------DATY POINT&#xD;
+    ,[Data Księgowania Dzień]&#xD;
+    ,[Data Wystawienia Dzień]&#xD;
+    ,[Data Operacji Dzień]&#xD;
+    */&#xD;
+    ----------DATY ANALIZY&#xD;
+    ,[Data Księgowania Dzień], [Data Księgowania Rok], [Data Księgowania Kwartał], [Data Księgowania Miesiąc], [Data Księgowania Miesiąc Poprzedni], [Data Księgowania Miesiąc Bieżący]&#xD;
+    ,[Data Księgowania Tydzień Roku]&#xD;
+    ,[Data Wystawienia Dzień], [Data Wystawienia Rok], [Data Wystawienia Kwartał], [Data Wystawienia Miesiąc], [Data Wystawienia Miesiąc Poprzedni],[Data Wystawienia Miesiąc Bieżący]&#xD;
+    ,[Data Wystawienia Tydzień Roku]&#xD;
+    ,[Data Operacji Dzień], [Data Operacji Rok], [Data Operacji Kwartał], [Data Operacji Miesiąc], [Data Operacji Miesiąc Poprzedni],[Data Operacji Miesiąc Bieżący]&#xD;
+    ,[Data Operacji Tydzień Roku]&#xD;
+    ,[Data Analizy]&#xD;
+    &#xD;
+    ----------KONTEKSTY&#xD;
+    ,[Dokument Numer __PROCID__KH__], [Dokument Numer __ORGID__],[Dokument Numer __DATABASE__]&#xD;
+    ,[Podmiot Pierwotny Kod __PROCID__Kontrahenci__], [Podmiot Pierwotny Kod __ORGID__],[Podmiot Pierwotny Kod __DATABASE__]&#xD;
+    ,[Podmiot Pierwotny Nazwa __PROCID__], [Podmiot Pierwotny Nazwa __ORGID__],[Podmiot Pierwotny Nazwa __DATABASE__]&#xD;
+    ,[Podmiot Nazwa __PROCID__], [Podmiot Nazwa __ORGID__], [Podmiot Nazwa __DATABASE__]&#xD;
+    ,[Podmiot Kod __PROCID__Kontrahenci__], [Podmiot Kod __ORGID__], [Podmiot Kod __DATABASE__]&#xD;
+    &#xD;
+    &#x27; + @kolumny2 +&#xD;
+&#x27; FROM &#xD;
+(SELECT &#xD;
+    BAZ.Baz_Nazwa [Baza Firmowa], REPLACE(CONVERT(VARCHAR(10), DeN_DataDok, 111), &#x27;&#x27;/&#x27;&#x27;, &#x27;&#x27;-&#x27;&#x27;) [Data Księgowania Dzień],  YEAR(DeN_DataDok) [Data Księgowania Rok], &#xD;
+    DATEPART(quarter, DeN_DataDok) [Data Księgowania Kwartał], MONTH(DeN_DataDok) [Data Księgowania Miesiąc], &#xD;
+    CASE &#xD;
+     WHEN (MONTH(DeN_DataDok) = MONTH(GETDATE())-1) AND (YEAR(DeN_DataDok) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     WHEN ((MONTH(DeN_DataDok) = 12) AND (MONTH(GETDATE()) = 1)) AND (YEAR(DeN_DataDok) = YEAR(GETDATE()) - 1) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Księgowania Miesiąc Poprzedni],&#xD;
+    CASE &#xD;
+     WHEN (MONTH(DeN_DataDok) = MONTH(GETDATE())) AND (YEAR(DeN_DataDok) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Księgowania Miesiąc Bieżący],&#xD;
+&#xD;
+    (datepart(DY, datediff(d, 0, DeN_DataDok) / 7 * 7 + 3)+6) / 7 [Data Księgowania Tydzień Roku],&#xD;
+    REPLACE(CONVERT(VARCHAR(10), DeN_DataWys, 111), &#x27;&#x27;/&#x27;&#x27;, &#x27;&#x27;-&#x27;&#x27;) [Data Wystawienia Dzień],  YEAR(DeN_DataWys) [Data Wystawienia Rok], &#xD;
+    DATEPART(quarter, DeN_DataWys) [Data Wystawienia Kwartał], MONTH(DeN_DataWys) [Data Wystawienia Miesiąc], &#xD;
+    CASE &#xD;
+     WHEN (MONTH(DeN_DataWys) = MONTH(GETDATE())-1) AND (YEAR(DeN_DataWys) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     WHEN ((MONTH(DeN_DataWys) = 12) AND (MONTH(GETDATE()) = 1)) AND (YEAR(DeN_DataWys) = YEAR(GETDATE()) - 1) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Wystawienia Miesiąc Poprzedni],&#xD;
+    CASE &#xD;
+     WHEN (MONTH(DeN_DataWys) = MONTH(GETDATE())) AND (YEAR(DeN_DataWys) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Wystawienia Miesiąc Bieżący],&#xD;
+    (datepart(DY, datediff(d, 0, DeN_DataWys) / 7 * 7 + 3)+6) / 7 [Data Wystawienia Tydzień Roku],&#xD;
+    REPLACE(CONVERT(VARCHAR(10), DeN_DataOpe, 111), &#x27;&#x27;/&#x27;&#x27;, &#x27;&#x27;-&#x27;&#x27;) [Data Operacji Dzień],  YEAR(DeN_DataOpe) [Data Operacji Rok], &#xD;
+    DATEPART(quarter, DeN_DataOpe) [Data Operacji Kwartał], MONTH(DeN_DataOpe) [Data Operacji Miesiąc], &#xD;
+    CASE &#xD;
+     WHEN (MONTH(DeN_DataOpe) = MONTH(GETDATE())-1) AND (YEAR(DeN_DataOpe) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     WHEN ((MONTH(DeN_DataOpe) = 12) AND (MONTH(GETDATE()) = 1)) AND (YEAR(DeN_DataOpe) = YEAR(GETDATE()) - 1) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Operacji Miesiąc Poprzedni],&#xD;
+    CASE &#xD;
+     WHEN (MONTH(DeN_DataOpe) = MONTH(GETDATE())) AND (YEAR(DeN_DataOpe) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Operacji Miesiąc Bieżący],&#xD;
+    (datepart(DY, datediff(d, 0, DeN_DataOpe) / 7 * 7 + 3)+6) / 7 [Data Operacji Tydzień Roku],&#xD;
+    GETDATE() [Data Analizy],&#xD;
+    OOb_Symbol [Okres obrachunkowy], &#xD;
+    &#xD;
+    DeN_Dokument [Dokument Numer], &#xD;
+    26002 [Dokument Numer __PROCID__KH__], DeN_DeNId [Dokument Numer __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Dokument Numer __DATABASE__],&#xD;
+&#xD;
+    DeE_Dokument [Dokument Element Numer], CASE WHEN DeN_Bufor = 0  THEN &#x27;&#x27;Zatwierdzone&#x27;&#x27; ELSE &#x27;&#x27;Bufor&#x27;&#x27; END [Dokument Bufor], &#xD;
+    Dzi_Symbol [Dziennik], CONVERT(VARCHAR(10),DeN_NrKsiegi) [Dziennik Numer],  DeN_IdentKsieg [Identyfikator Księgowy], poz.nazwa [Konto pełny numer], DeE_KontoMa [Konto Przeciwstawne],&#xD;
+    ISNULL(kat1.Kat_KodSzczegol, &#x27;&#x27;(PUSTA)&#x27;&#x27;) [Kategoria Szczegółowa z Elementu], ISNULL(kat2.Kat_KodSzczegol, &#x27;&#x27;(PUSTA)&#x27;&#x27;) [Kategoria Szczegółowa z Nagłówka], &#xD;
+    ISNULL(kat1.Kat_KodOgolny, &#x27;&#x27;(PUSTA)&#x27;&#x27;) [Kategoria Ogólna z Elementu], ISNULL(kat2.Kat_KodOgolny, &#x27;&#x27;(PUSTA)&#x27;&#x27;) [Kategoria Ogólna z Nagłówka],&#xD;
+    ISNULL(DeE_Kategoria, &#x27;&#x27;(PUSTY)&#x27;&#x27;) [Dokument Opis z Elementu], ISNULL(DeN_Kategoria, &#x27;&#x27;(PUSTY)&#x27;&#x27;) [Dokument Opis z Nagłówka],&#xD;
+    CASE WHEN DeN_PodmiotTyp = 1 THEN &#x27;&#x27;Kontrahent&#x27;&#x27;&#xD;
+         WHEN DeN_PodmiotTyp = 2 THEN &#x27;&#x27;Bank&#x27;&#x27;&#xD;
+         WHEN DeN_PodmiotTyp = 3 THEN &#x27;&#x27;Pracownik&#x27;&#x27;&#xD;
+         WHEN DeN_PodmiotTyp = 4 THEN &#x27;&#x27;Wspólnik&#x27;&#x27;&#xD;
+         WHEN DeN_PodmiotTyp = 5 THEN &#x27;&#x27;Urząd&#x27;&#x27;&#xD;
+    ELSE &#x27;&#x27;(NIEOKREŚLONY)&#x27;&#x27; END [Podmiot Pierwotny Typ], &#xD;
+&#xD;
+    ISNULL(Podmioty.Pod_Kod, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny Kod],&#xD;
+    20201 [Podmiot Pierwotny Kod __PROCID__Kontrahenci__], Podmioty.Pod_PodId [Podmiot Pierwotny Kod __ORGID__], &#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Pierwotny Kod __DATABASE__],&#xD;
+    &#xD;
+    ISNULL(Podmioty.Pod_Nazwa1, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny Nazwa], &#xD;
+    20201 [Podmiot Pierwotny Nazwa __PROCID__], Podmioty.Pod_PodId [Podmiot Pierwotny Nazwa __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Pierwotny Nazwa __DATABASE__],&#xD;
+    &#xD;
+    ISNULL(Podmioty.Pod_NIP, &#x27;&#x27;(BRAK)&#x27;&#x27;) [Podmiot Pierwotny NIP],&#xD;
+    ISNULL(Podmioty.Pod_Kraj, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny Kraj],&#xD;
+    ISNULL(Podmioty.Pod_Wojewodztwo, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny Województwo], ISNULL(Podmioty.Pod_Powiat, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny Powiat], ISNULL(Podmioty.Pod_Gmina, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny Gmina],&#xD;
+    ISNULL(Podmioty.Pod_Miasto, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny Miasto], ISNULL(PodPoz.Pod_Kod, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny z Pozycji],&#xD;
+    CASE WHEN pod5.Pod_PodmiotTyp = 1 THEN &#x27;&#x27;Kontrahent&#x27;&#x27;&#xD;
+        WHEN pod5.Pod_PodmiotTyp = 2 THEN &#x27;&#x27;Bank&#x27;&#x27;&#xD;
+        WHEN pod5.Pod_PodmiotTyp = 3 THEN &#x27;&#x27;Pracownik&#x27;&#x27;&#xD;
+        WHEN pod5.Pod_PodmiotTyp = 4 THEN &#x27;&#x27;Wspólnik&#x27;&#x27;&#xD;
+        WHEN pod5.Pod_PodmiotTyp = 5 THEN &#x27;&#x27;Urząd&#x27;&#x27;&#xD;
+    ELSE &#x27;&#x27;(NIEOKREŚLONY)&#x27;&#x27; END AS [Podmiot Typ], &#xD;
+&#xD;
+    ISNULL(pod5.Pod_Nazwa1, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;)  [Podmiot Nazwa], &#xD;
+    20201 [Podmiot Nazwa __PROCID__], pod5.Pod_PodId [Podmiot Nazwa __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Nazwa __DATABASE__],&#xD;
+    &#xD;
+    ISNULL(pod5.Pod_Kod, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;)  [Podmiot Kod], &#xD;
+    20201 [Podmiot Kod __PROCID__Kontrahenci__], pod5.Pod_PodId [Podmiot Kod __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Kod __DATABASE__],&#xD;
+&#xD;
+    ISNULL(pod5.Pod_NIP, &#x27;&#x27;(BRAK)&#x27;&#x27;)  AS [Podmiot NIP],&#xD;
+    ISNULL(pod5.Pod_Kraj, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;)  AS [Podmiot Kraj],&#xD;
+    ISNULL(NULLIF(pod5.Pod_Wojewodztwo, &#x27;&#x27;&#x27;&#x27;),&#x27;&#x27;(NIEPRZYPISANE)&#x27;&#x27;) [Podmiot Województwo],&#xD;
+    &quot;Podmiot Powiat&quot; = CASE WHEN pod5.Pod_Powiat = &#x27;&#x27;&#x27;&#x27; THEN &#x27;&#x27;(NIEPRZYPISANE)&#x27;&#x27; ELSE pod5.Pod_Powiat END,&#xD;
+    &quot;Podmiot Gmina&quot; = CASE WHEN pod5.Pod_Gmina = &#x27;&#x27;&#x27;&#x27; THEN &#x27;&#x27;(NIEPRZYPISANE)&#x27;&#x27; ELSE pod5.Pod_Gmina END, &#xD;
+    ISNULL(NULLIF(pod5.Pod_Miasto, &#x27;&#x27;&#x27;&#x27;),&#x27;&#x27;(NIEPRZYPISANE)&#x27;&#x27;) [Podmiot Miasto],&#xD;
+    ISNULL(pod6.Pod_Kod, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot z Pozycji],&#xD;
+&#xD;
+    ISNULL(op1.Ope_Kod, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Operator Wprowadzający], ISNULL(op2.Ope_Kod, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Operator Modyfikujący],&#xD;
+    &#x27;&#x27;NIE&#x27;&#x27; AS [Rodzaj],    &#xD;
+    CASE WHEN Acc_TypKonta = 6 THEN &#x27;&#x27;Pozabilansowe&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 5 THEN &#x27;&#x27;Koszty&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 4 THEN &#x27;&#x27;Przychody&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 3 THEN &#x27;&#x27;Aktywno pasywne&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 2 THEN &#x27;&#x27;Pasywa&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 1 THEN &#x27;&#x27;Aktywa&#x27;&#x27;&#xD;
+    ELSE &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27; END AS [Konto Typ],&#xD;
+            CASE WHEN Acc_TypKonta = 6 THEN &#x27;&#x27;Pozabilansowe&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 5 OR Acc_TypKonta = 4  THEN &#x27;&#x27;Wynikowe&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 3 OR Acc_TypKonta = 2 OR Acc_TypKonta = 1 THEN &#x27;&#x27;Bilansowe&#x27;&#x27;&#xD;
+    ELSE &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27; END AS [Konto Typy],&#xD;
+    CASE WHEN Acc_KontrolaBudzetu = 0 THEN &#x27;&#x27;Brak&#x27;&#x27;&#xD;
+         WHEN Acc_KontrolaBudzetu = 1 THEN &#x27;&#x27;Obroty Wn&#x27;&#x27; &#xD;
+         WHEN Acc_KontrolaBudzetu = 2 Then &#x27;&#x27;obroty Ma&#x27;&#x27;&#xD;
+    END [Kontrola budżetu],&#xD;
+    CASE WHEN Acc_Rozrachunkowe = 1 THEN &#x27;&#x27;TAK&#x27;&#x27; ELSE &#x27;&#x27;NIE&#x27;&#x27; END AS [Konto Rozrachunkowe],&#xD;
+    CASE WHEN DeE_Waluta = &#x27;&#x27;&#x27;&#x27; THEN @Wal ELSE DeE_Waluta END [Waluta],&#xD;
+    CASE WHEN DeE_AccWnId IS NOT NULL THEN DeE_Kwota ELSE NULL END [Obroty Winien], NULL [Obroty Ma],&#xD;
+    CASE WHEN DeE_AccWnId IS NOT NULL THEN DeE_KwotaWal ELSE NULL END [Obroty Winien Waluta], NULL [Obroty Ma Waluta],&#xD;
+    NULL AS [Bilans Otwarcia Ma], NULL  AS [Bilans Otwarcia Winien],&#xD;
+    NULL [Bilans Otwarcia Ma Waluta], NULL [Bilans Otwarcia Winien Waluta],&#xD;
+    NULL [Plan Wn], NULL [Plan Ma]  &#x27;&#xD;
+    + @kolumny +&#xD;
+&#x27; FROM CDN.DekretyNag&#xD;
+    JOIN CDN.DekretyElem ON DeE_DeNId = DeN_DeNId AND DeE_AccWnId IS NOT NULL&#xD;
+    LEFT OUTER JOIN CDN.Kategorie kat1 ON DeE_KatId = kat1.Kat_KatID&#xD;
+    LEFT OUTER JOIN CDN.Kategorie kat2 ON DeN_KatId = kat2.Kat_KatID&#xD;
+    JOIN CDN.Dzienniki ON DeN_DziId = Dzi_DziId&#xD;
+    LEFT OUTER JOIN #tmpTwrGr Poz ON DeE_AccWnId = Poz.gid &#xD;
+    LEFT OUTER JOIN CDN.Konta ON DeE_AccWnId = Acc_AccId&#xD;
+    JOIN CDN.OkresyObrach ON DeN_OObId = OOb_OObID&#xD;
+    LEFT OUTER JOIN CDN.PodmiotyView Podmioty ON DeN_PodmiotId = Podmioty.Pod_PodId AND DeN_PodmiotTyp = Podmioty.Pod_PodmiotTyp&#xD;
+    LEFT OUTER JOIN CDN.PodmiotyView PodPoz ON DeE_SlownikId = PodPoz.Pod_PodId and DeE_SlownikTyp = PodPoz.Pod_PodmiotTyp&#xD;
+    LEFT JOIN &#x27; + @Operatorzy + &#x27; op1 ON DeN_OpeZalID = op1.Ope_OpeId&#xD;
+    LEFT JOIN &#x27; + @Operatorzy + &#x27; op2 ON DeN_OpeModID = op2.Ope_OpeId&#xD;
+    LEFT OUTER JOIN cdn.PodmiotyView pod5 on Podmioty.Pod_GlID = pod5.Pod_PodId and Podmioty.Pod_GlKod = pod5.Pod_Kod&#xD;
+    LEFT OUTER JOIN cdn.PodmiotyView pod6 on PodPoz.Pod_GlID = pod6.Pod_PodId and PodPoz.Pod_GlKod = pod6.Pod_Kod&#xD;
+    LEFT JOIN &#x27;+ @Bazy +&#x27; BAZ ON DB_NAME() = BAZ.Baz_NazwaBazy AND BAZ.Baz_NazwaSerwera = SERVERPROPERTY(&#x27;&#x27;ServerName&#x27;&#x27;) and baz.baz_nieaktywna = 0&#xD;
+  WHERE DeN_Typ &lt;&gt; 1&#xD;
+  AND Oob_OobId IN (SELECt OOBID FROM #OOB)&#xD;
+ &#xD;
+UNION ALL &#xD;
+&#xD;
+SELECT &#xD;
+    BAZ.Baz_Nazwa [Baza Firmowa], REPLACE(CONVERT(VARCHAR(10), DeN_DataDok, 111), &#x27;&#x27;/&#x27;&#x27;, &#x27;&#x27;-&#x27;&#x27;) [Data Księgowania Dzień],  YEAR(DeN_DataDok) [Data Księgowania Rok], &#xD;
+    DATEPART(quarter, DeN_DataDok) [Data Księgowania Kwartał], MONTH(DeN_DataDok) [Data Księgowania Miesiąc], &#xD;
+&#xD;
+    CASE &#xD;
+     WHEN (MONTH(DeN_DataDok) = MONTH(GETDATE())-1) AND (YEAR(DeN_DataDok) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     WHEN ((MONTH(DeN_DataDok) = 12) AND (MONTH(GETDATE()) = 1)) AND (YEAR(DeN_DataDok) = YEAR(GETDATE()) - 1) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Księgowania Miesiąc Poprzedni],&#xD;
+    CASE &#xD;
+     WHEN (MONTH(DeN_DataDok) = MONTH(GETDATE())) AND (YEAR(DeN_DataDok) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Księgowania Miesiąc Bieżący],&#xD;
+&#xD;
+    (datepart(DY, datediff(d, 0, DeN_DataDok) / 7 * 7 + 3)+6) / 7 [Data Księgowania Tydzień Roku],&#xD;
+    REPLACE(CONVERT(VARCHAR(10), DeN_DataWys, 111), &#x27;&#x27;/&#x27;&#x27;, &#x27;&#x27;-&#x27;&#x27;) [Data Wystawienia Dzień],  YEAR(DeN_DataWys) [Data Wystawienia Rok], &#xD;
+    DATEPART(quarter, DeN_DataWys) [Data Wystawienia Kwartał], MONTH(DeN_DataWys) [Data Wystawienia Miesiąc], &#xD;
+&#xD;
+    CASE &#xD;
+     WHEN (MONTH(DeN_DataWys) = MONTH(GETDATE())-1) AND (YEAR(DeN_DataWys) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     WHEN ((MONTH(DeN_DataWys) = 12) AND (MONTH(GETDATE()) = 1)) AND (YEAR(DeN_DataWys) = YEAR(GETDATE()) - 1) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Wystawienia Miesiąc Poprzedni],&#xD;
+    CASE &#xD;
+     WHEN (MONTH(DeN_DataWys) = MONTH(GETDATE())) AND (YEAR(DeN_DataWys) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Wystawienia Miesiąc Bieżący],&#xD;
+&#xD;
+    (datepart(DY, datediff(d, 0, DeN_DataWys) / 7 * 7 + 3)+6) / 7 [Data Wystawienia Tydzień Roku],&#xD;
+    REPLACE(CONVERT(VARCHAR(10), DeN_DataOpe, 111), &#x27;&#x27;/&#x27;&#x27;, &#x27;&#x27;-&#x27;&#x27;) [Data Operacji Dzień],  YEAR(DeN_DataOpe) [Data Operacji Rok], &#xD;
+    DATEPART(quarter, DeN_DataOpe) [Data Operacji Kwartał], MONTH(DeN_DataOpe) [Data Operacji Miesiąc], &#xD;
+&#xD;
+    CASE &#xD;
+     WHEN (MONTH(DeN_DataOpe) = MONTH(GETDATE())-1) AND (YEAR(DeN_DataOpe) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     WHEN ((MONTH(DeN_DataOpe) = 12) AND (MONTH(GETDATE()) = 1)) AND (YEAR(DeN_DataOpe) = YEAR(GETDATE()) - 1) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Operacji Miesiąc Poprzedni],&#xD;
+    CASE &#xD;
+     WHEN (MONTH(DeN_DataOpe) = MONTH(GETDATE())) AND (YEAR(DeN_DataOpe) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Operacji Miesiąc Bieżący],&#xD;
+    (datepart(DY, datediff(d, 0, DeN_DataOpe) / 7 * 7 + 3)+6) / 7 [Data Operacji Tydzień Roku],&#xD;
+    GETDATE() [Data Analizy],&#xD;
+    OOb_Symbol [Okres obrachunkowy], &#xD;
+    &#xD;
+    DeN_Dokument [Dokument Numer], &#xD;
+    26002 [Dokument Numer __PROCID__KH__], DeN_DeNId [Dokument Numer __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Dokument Numer __DATABASE__],&#xD;
+&#xD;
+    DeE_Dokument [Dokument Element Numer], CASE WHEN DeN_Bufor = 0  THEN &#x27;&#x27;Zatwierdzone&#x27;&#x27; ELSE &#x27;&#x27;Bufor&#x27;&#x27; END [Dokument Bufor],&#xD;
+    Dzi_Symbol [Dziennik], CONVERT(VARCHAR(10),DeN_NrKsiegi) [Dziennik Numer], DeN_IdentKsieg [Identyfikator Księgowy], poz.nazwa [Konto pełny numer], DeE_KontoWn [Konto Przeciwstawne],&#xD;
+    ISNULL(kat1.Kat_KodSzczegol, &#x27;&#x27;(PUSTA)&#x27;&#x27;) [Kategoria Szczegółowa z Elementu], ISNULL(kat2.Kat_KodSzczegol, &#x27;&#x27;(PUSTA)&#x27;&#x27;) [Kategoria Szczegółowa z Nagłówka], &#xD;
+    ISNULL(kat1.Kat_KodOgolny, &#x27;&#x27;(PUSTA)&#x27;&#x27;) [Kategoria Ogólna z Elementu], ISNULL(kat2.Kat_KodOgolny, &#x27;&#x27;(PUSTA)&#x27;&#x27;) [Kategoria Ogólna z Nagłówka],&#xD;
+    ISNULL(DeE_Kategoria, &#x27;&#x27;(PUSTY)&#x27;&#x27;) [Dokument Opis z Elementu], ISNULL(DeN_Kategoria, &#x27;&#x27;(PUSTY)&#x27;&#x27;) [Dokument Opis z Nagłówka],&#xD;
+    CASE WHEN DeN_PodmiotTyp = 1 THEN &#x27;&#x27;Kontrahent&#x27;&#x27;&#xD;
+         WHEN DeN_PodmiotTyp = 2 THEN &#x27;&#x27;Bank&#x27;&#x27;&#xD;
+         WHEN DeN_PodmiotTyp = 3 THEN &#x27;&#x27;Pracownik&#x27;&#x27;&#xD;
+         WHEN DeN_PodmiotTyp = 4 THEN &#x27;&#x27;Wspólnik&#x27;&#x27;&#xD;
+         WHEN DeN_PodmiotTyp = 5 THEN &#x27;&#x27;Urząd&#x27;&#x27;&#xD;
+    ELSE &#x27;&#x27;(NIEOKREŚLONY)&#x27;&#x27; END [Podmiot Pierwotny Typ], &#xD;
+&#xD;
+    ISNULL(Podmioty.Pod_Kod, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny Kod],&#xD;
+    20201 [Podmiot Pierwotny Kod __PROCID__Kontrahenci__], Podmioty.Pod_PodId [Podmiot Pierwotny Kod __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Pierwotny Kod __DATABASE__],&#xD;
+    &#xD;
+    ISNULL(Podmioty.Pod_Nazwa1, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny Nazwa], &#xD;
+    20201 [Podmiot Pierwotny Nazwa __PROCID__], Podmioty.Pod_PodId [Podmiot Pierwotny Nazwa __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Pierwotny Nazwa __DATABASE__],&#xD;
+    &#xD;
+    ISNULL(Podmioty.Pod_NIP, &#x27;&#x27;(BRAK)&#x27;&#x27;) [Podmiot Pierwotny NIP],&#xD;
+    ISNULL(Podmioty.Pod_Kraj, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny Kraj],&#xD;
+    ISNULL(Podmioty.Pod_Wojewodztwo, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny Województwo], ISNULL(Podmioty.Pod_Powiat, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny Powiat], ISNULL(Podmioty.Pod_Gmina, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny Gmina],&#xD;
+    ISNULL(Podmioty.Pod_Miasto, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny Miasto], ISNULL(PodPoz.Pod_Kod, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Pierwotny z Pozycji], &#xD;
+        CASE WHEN pod5.Pod_PodmiotTyp = 1 THEN &#x27;&#x27;Kontrahent&#x27;&#x27;&#xD;
+        WHEN pod5.Pod_PodmiotTyp = 2 THEN &#x27;&#x27;Bank&#x27;&#x27;&#xD;
+        WHEN pod5.Pod_PodmiotTyp = 3 THEN &#x27;&#x27;Pracownik&#x27;&#x27;&#xD;
+        WHEN pod5.Pod_PodmiotTyp = 4 THEN &#x27;&#x27;Wspólnik&#x27;&#x27;&#xD;
+        WHEN pod5.Pod_PodmiotTyp = 5 THEN &#x27;&#x27;Urząd&#x27;&#x27;&#xD;
+    ELSE &#x27;&#x27;(NIEOKREŚLONY)&#x27;&#x27; END AS [Podmiot Typ], &#xD;
+&#xD;
+    ISNULL(pod5.Pod_Nazwa1, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Nazwa], &#xD;
+    20201 [Podmiot Nazwa __PROCID__], pod5.Pod_PodId [Podmiot Nazwa __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Nazwa __DATABASE__],&#xD;
+    &#xD;
+    ISNULL(pod5.Pod_Kod, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot Kod], &#xD;
+    20201 [Podmiot Kod __PROCID__Kontrahenci__], pod5.Pod_PodId [Podmiot Kod __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Kod __DATABASE__],&#xD;
+&#xD;
+    ISNULL(pod5.Pod_NIP, &#x27;&#x27;(BRAK)&#x27;&#x27;) AS [Podmiot NIP],&#xD;
+    ISNULL(pod5.Pod_Kraj, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) AS [Podmiot Kraj],&#xD;
+    ISNULL(NULLIF(pod5.Pod_Wojewodztwo, &#x27;&#x27;&#x27;&#x27;),&#x27;&#x27;(NIEPRZYPISANE)&#x27;&#x27;) [Podmiot Województwo],&#xD;
+    &quot;Podmiot Powiat&quot; = CASE WHEN pod5.Pod_Powiat = &#x27;&#x27;&#x27;&#x27; THEN &#x27;&#x27;(NIEPRZYPISANE)&#x27;&#x27; ELSE pod5.Pod_Powiat END,&#xD;
+    &quot;Podmiot Gmina&quot; = CASE WHEN pod5.Pod_Gmina = &#x27;&#x27;&#x27;&#x27; THEN &#x27;&#x27;(NIEPRZYPISANE)&#x27;&#x27; ELSE pod5.Pod_Gmina END, &#xD;
+    ISNULL(NULLIF(pod5.Pod_Miasto, &#x27;&#x27;&#x27;&#x27;),&#x27;&#x27;(NIEPRZYPISANE)&#x27;&#x27;) [Podmiot Miasto],&#xD;
+    ISNULL(pod6.Pod_Kod, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Podmiot z Pozycji],&#xD;
+    ISNULL(op1.Ope_Kod, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Operator Wprowadzający], ISNULL(op2.Ope_Kod, &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27;) [Operator Modyfikujący],&#xD;
+    &#x27;&#x27;NIE&#x27;&#x27; AS [Rodzaj], &#xD;
+    CASE WHEN Acc_TypKonta = 6 THEN &#x27;&#x27;Pozabilansowe&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 5 THEN &#x27;&#x27;Koszty&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 4 THEN &#x27;&#x27;Przychody&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 3 THEN &#x27;&#x27;Aktywno pasywne&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 2 THEN &#x27;&#x27;Pasywa&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 1 THEN &#x27;&#x27;Aktywa&#x27;&#x27;&#xD;
+    ELSE &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27; END AS [Konto Typ],&#xD;
+            CASE WHEN Acc_TypKonta = 6 THEN &#x27;&#x27;Pozabilansowe&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 5 OR Acc_TypKonta = 4  THEN &#x27;&#x27;Wynikowe&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 3 OR Acc_TypKonta = 2 OR Acc_TypKonta = 1 THEN &#x27;&#x27;Bilansowe&#x27;&#x27;&#xD;
+    ELSE &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27; END AS [Konto Typy],&#xD;
+    CASE WHEN Acc_KontrolaBudzetu = 0 THEN &#x27;&#x27;Brak&#x27;&#x27;&#xD;
+         WHEN Acc_KontrolaBudzetu = 1 THEN &#x27;&#x27;Obroty Wn&#x27;&#x27; &#xD;
+         WHEN Acc_KontrolaBudzetu = 2 Then &#x27;&#x27;obroty Ma&#x27;&#x27;&#xD;
+    END [Kontrola budżetu],&#xD;
+    CASE WHEN Acc_Rozrachunkowe = 1 THEN &#x27;&#x27;TAK&#x27;&#x27; ELSE &#x27;&#x27;NIE&#x27;&#x27; END AS [Konto Rozrachunkowe],&#xD;
+    CASE WHEN DeE_Waluta = &#x27;&#x27;&#x27;&#x27; THEN @Wal ELSE DeE_Waluta END [Waluta],&#xD;
+    NULL [Obroty Winien], CASE WHEN DeE_AccMaId IS NOT NULL THEN DeE_Kwota ELSE NULL END [Obroty Ma],&#xD;
+    NULL [Obroty Winien Waluta], CASE WHEN DeE_AccMaId IS NOT NULL THEN DeE_KwotaWal ELSE NULL END [Obroty Ma Waluta],&#xD;
+    NULL AS [Bilans Otwarcia Ma], NULL  AS [Bilans Otwarcia Winien],&#xD;
+    NULL [Bilans Otwarcia Ma Waluta], NULL [Bilans Otwarcia Winien Waluta],&#xD;
+    NULL [Plan Wn], NULL [Plan Ma] &#x27;&#xD;
+    + @kolumny +&#xD;
+&#x27; FROM CDN.DekretyNag&#xD;
+    JOIN CDN.DekretyElem ON DeE_DeNId = DeN_DeNId AND DeE_AccMaId IS NOT NULL&#xD;
+    LEFT OUTER JOIN CDN.Kategorie kat1 ON DeE_KatId = kat1.Kat_KatID&#xD;
+    LEFT OUTER JOIN CDN.Kategorie kat2 ON DeN_KatId = kat2.Kat_KatID&#xD;
+    JOIN CDN.Dzienniki ON DeN_DziId = Dzi_DziId&#xD;
+    LEFT OUTER JOIN #tmpTwrGr Poz ON DeE_AccMaId = Poz.gid &#xD;
+    LEFT OUTER JOIN CDN.Konta ON DeE_AccMaId = Acc_AccId &#xD;
+    JOIN CDN.OkresyObrach ON DeN_OObId = OOb_OObID&#xD;
+    LEFT OUTER JOIN CDN.PodmiotyView Podmioty ON DeN_PodmiotId = Podmioty.Pod_PodId AND DeN_PodmiotTyp = Podmioty.Pod_PodmiotTyp&#xD;
+    LEFT OUTER JOIN CDN.PodmiotyView PodPoz ON DeE_SlownikId = PodPoz.Pod_PodId and DeE_SlownikTyp = PodPoz.Pod_PodmiotTyp&#xD;
+    LEFT JOIN &#x27; + @Operatorzy + &#x27; op1 ON DeN_OpeZalID = op1.Ope_OpeId&#xD;
+    LEFT JOIN &#x27; + @Operatorzy + &#x27; op2 ON DeN_OpeModID = op2.Ope_OpeId&#xD;
+    LEFT OUTER JOIN cdn.PodmiotyView pod5 on Podmioty.Pod_GlID = pod5.Pod_PodId and Podmioty.Pod_GlKod = pod5.Pod_Kod&#xD;
+    LEFT OUTER JOIN cdn.PodmiotyView pod6 on PodPoz.Pod_GlID = pod6.Pod_PodId and PodPoz.Pod_GlKod = pod6.Pod_Kod&#xD;
+    LEFT JOIN &#x27;+ @Bazy +&#x27; BAZ ON DB_NAME() = BAZ.Baz_NazwaBazy AND BAZ.Baz_NazwaSerwera = SERVERPROPERTY(&#x27;&#x27;ServerName&#x27;&#x27;) and baz.baz_nieaktywna = 0&#xD;
+  WHERE DeN_Typ &lt;&gt; 1&#xD;
+  AND Oob_OobId  IN (SELECT OOBID FROM #OOB)&#xD;
+&#xD;
+UNION ALL&#xD;
+&#xD;
+SELECT &#xD;
+    BAZ.Baz_Nazwa [Baza Firmowa], NULL [Data Księgowania Dzień], ISNULL( SUBSTRING(convert(varchar,Obr_RokMies), 1,4), 0) [Data Księgowania Rok], &#xD;
+    NULL [Data Księgowania Kwartał], ISNULL( SUBSTRING(convert(varchar,Obr_RokMies), 5,6), 0) [Data Księgowania Miesiąc], &#xD;
+    CASE &#xD;
+     WHEN (Obr_RokMies%100 = MONTH(GETDATE())-1) AND ((Obr_RokMies/100) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     WHEN (((Obr_RokMies%100) = 12) AND (MONTH(GETDATE()) = 1)) AND ((Obr_RokMies/100) = YEAR(GETDATE()) - 1) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Księgowania Miesiąc Poprzedni],&#xD;
+&#xD;
+    CASE WHEN Obr_RokMies = YEAR(GETDATE())*100 + MONTH(GETDATE()) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Księgowania Miesiąc Bieżący],&#xD;
+&#xD;
+&#xD;
+    NULL [Data Księgowania Tydzień Roku],&#xD;
+    NULL [Data Wystawienia Dzień],  NULL [Data Wystawienia Rok], &#xD;
+    NULL [Data Wystawienia Kwartał], NULL [Data Wystawienia Miesiąc], NULL [Data Wystawienia Miesiąc Poprzedni], NULL [Data Wystawienia Miesiąc Bieżący],&#xD;
+    NULL [Data Wystawienia Tydzień Roku],&#xD;
+    NULL [Data Operacji Dzień], NULL [Data Operacji Rok], &#xD;
+    NULL [Data Operacji Kwartał], NULL [Data Operacji Miesiąc], NULL [Data Operacji Miesiąc Poprzedni], NULL [Data Operacji Miesiąc Bieżący], &#xD;
+    NULL [Data operacji Tydzień Roku],&#xD;
+    GETDATE() [Data Analizy],&#xD;
+    OOb_Symbol [Okres obrachunkowy], &#xD;
+&#xD;
+    NULL [Dokument Numer], &#xD;
+    26006 [Dokument Numer __PROCID__KH__], Acc_AccId [Dokument Numer __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Dokument Numer __DATABASE__],&#xD;
+&#xD;
+    NULL [Dokument Element Numer], CASE WHEN Obr_ObrotyWn = 0.0 AND Obr_ObrotyMa = 0.0 THEN &#x27;&#x27;Bufor&#x27;&#x27; ELSE &#x27;&#x27;Zatwierdzone&#x27;&#x27; END [Dokument Bufor],&#xD;
+    NULL [Dziennik], NULL [Dziennik Numer], NULL [Identyfikator Księgowy], poz.nazwa [Konto pełny numer], NULL [Konto Przeciwstawne],&#xD;
+    NULL [Kategoria Szczegółowa z Elementu], NULL [Kategoria Szczegółowa z Nagłówka], &#xD;
+    NULL [Kategoria Ogólna z Elementu], NULL [Kategoria Ogólna z Nagłówka],&#xD;
+    NULL [Dokument Opis z Elementu], NULL [Dokument Opis z Nagłówka],&#xD;
+    NULL [Podmiot Pierwotny Typ], &#xD;
+    &#xD;
+    NULL [Podmiot Pierwotny Kod], &#xD;
+    26006 [Podmiot Pierwotny Kod __PROCID__Kontrahenci__], Acc_AccId [Podmiot Pierwotny Kod __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Pierwotny Kod __DATABASE__],&#xD;
+    &#xD;
+    NULL [Podmiot Pierwotny Nazwa], &#xD;
+    26006 [Podmiot Pierwotny Kod __PROCID__Kontrahenci__], Acc_AccId [Podmiot Pierwotny Kod __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Pierwotny Nazwa __DATABASE__],&#xD;
+    &#xD;
+    NULL [Podmiot Pierwotny NIP],&#xD;
+    NULL [Podmiot Pierwotny Kraj],&#xD;
+    NULL [Podmiot Pierwotny Województwo], NULL [Podmiot Pierwotny Powiat],NULL [Podmiot Pierwotny Gmina],&#xD;
+    NULL [Podmiot Pierwotny Miasto], NULL [Podmiot Pierwotny z Pozycji],    &#xD;
+&#xD;
+    NULL [Podmiot Typ], &#xD;
+    NULL [Podmiot Kod], &#xD;
+    26006 [Podmiot Kod __PROCID__Kontrahenci__], Acc_AccId [Podmiot Kod __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Kod __DATABASE__],&#xD;
+    NULL [Podmiot Nazwa], &#xD;
+    26006 [Podmiot Nazwa __PROCID__Kontrahenci__], Acc_AccId [Podmiot Nazwa __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Nazwa __DATABASE__],&#xD;
+    NULL [Podmiot NIP],&#xD;
+    NULL [Podmiot Kraj],&#xD;
+    NULL [Podmiot Województwo], NULL [Podmiot Powiat],NULL [Podmiot Gmina],&#xD;
+    NULL [Podmiot Miasto], NULL [Podmiot z Pozycji],&#xD;
+&#xD;
+    NULL [Operator Wprowadzający], NULL [Operator Modyfikujący],&#xD;
+    CASE WHEN Obr_Typ = 0 THEN &#x27;&#x27;NIE&#x27;&#x27; WHEN Obr_Typ = 1 THEN &#x27;&#x27;TAK&#x27;&#x27; ELSE &#x27;&#x27;Korekta Bilansu Zamknięcia&#x27;&#x27; END AS [Rodzaj],&#xD;
+    CASE WHEN Acc_TypKonta = 6 THEN &#x27;&#x27;Pozabilansowe&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 5 THEN &#x27;&#x27;Koszty&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 4 THEN &#x27;&#x27;Przychody&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 3 THEN &#x27;&#x27;Aktywno pasywne&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 2 THEN &#x27;&#x27;Pasywa&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 1 THEN &#x27;&#x27;Aktywa&#x27;&#x27;&#xD;
+    ELSE &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27; END AS [Konto Typ],&#xD;
+            CASE WHEN Acc_TypKonta = 6 THEN &#x27;&#x27;Pozabilansowe&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 5 OR Acc_TypKonta = 4  THEN &#x27;&#x27;Wynikowe&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 3 OR Acc_TypKonta = 2 OR Acc_TypKonta = 1 THEN &#x27;&#x27;Bilansowe&#x27;&#x27;&#xD;
+    ELSE &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27; END AS [Konto Typy],&#xD;
+    CASE WHEN Acc_KontrolaBudzetu = 0 THEN &#x27;&#x27;Brak&#x27;&#x27;&#xD;
+         WHEN Acc_KontrolaBudzetu = 1 THEN &#x27;&#x27;Obroty Wn&#x27;&#x27; &#xD;
+         WHEN Acc_KontrolaBudzetu = 2 Then &#x27;&#x27;obroty Ma&#x27;&#x27;&#xD;
+    END [Kontrola budżetu],&#xD;
+    CASE WHEN Acc_Rozrachunkowe = 1 THEN &#x27;&#x27;TAK&#x27;&#x27; ELSE &#x27;&#x27;NIE&#x27;&#x27; END AS [Konto Rozrachunkowe],&#xD;
+    CASE WHEN Acc_Waluta = &#x27;&#x27;&#x27;&#x27; THEN @Wal ELSE Acc_Waluta END [Waluta],&#xD;
+    NULL [Obroty Winien], NULL [Obroty Ma], NULL [Obroty Winien Waluta], NULL [Obroty Ma Waluta],&#xD;
+    CASE WHEN Obr_Typ = 1 THEN &#xD;
+    CASE &#xD;
+        WHEN Obr_ObrotyMa &gt; 0 THEN Obr_ObrotyMa&#xD;
+        ELSE Obr_ObrotyMaBufor&#xD;
+    END &#xD;
+    ELSE 0 END AS [Bilans Otwarcia Ma],&#xD;
+    CASE WHEN Obr_Typ = 1 THEN &#xD;
+    CASE &#xD;
+        WHEN Obr_ObrotyWn &gt; 0 THEN Obr_ObrotyWn &#xD;
+        ELSE Obr_ObrotyWnBufor&#xD;
+    END  &#xD;
+    ELSE 0 END  AS [Bilans Otwarcia Winien],&#xD;
+    CASE WHEN Obr_Typ = 1 THEN &#xD;
+    CASE &#xD;
+        WHEN Obr_ObrotyMaWal &gt; 0 THEN Obr_ObrotyMaWal &#xD;
+        ELSE Obr_ObrotyMaBuforWal&#xD;
+    END &#xD;
+    ELSE 0 END AS [Bilans Otwarcia Ma Waluta],&#xD;
+    CASE WHEN Obr_Typ = 1 THEN &#xD;
+    CASE &#xD;
+        WHEN Obr_ObrotyWnWal &gt; 0 THEN Obr_ObrotyWnWal &#xD;
+        ELSE Obr_ObrotyWnBuforWal&#xD;
+    END  &#xD;
+    ELSE 0 END  AS [Bilans Otwarcia Winien Waluta],&#xD;
+    NULL [Plan Wn], &#xD;
+    NULL [Plan Ma]&#xD;
+    &#xD;
+    &#x27; + @kolumny +&#xD;
+&#x27; FROM [CDN].[Obroty]&#xD;
+    LEFT JOIN #tmpTwrGr Poz ON Obr_AccId = Poz.gid&#xD;
+    LEFT JOIN CDN.Konta ON Obr_AccId = Acc_AccId&#xD;
+    LEFT JOIN CDN.OkresyObrach ON Acc_OObId = OOb_OObID&#xD;
+    LEFT JOIN &#x27;+ @Bazy +&#x27; BAZ ON DB_NAME() = BAZ.Baz_NazwaBazy AND BAZ.Baz_NazwaSerwera = SERVERPROPERTY(&#x27;&#x27;ServerName&#x27;&#x27;) and baz.baz_nieaktywna = 0&#xD;
+    WHERE Oob_OobId  IN (SELECT OOBID FROM #OOB)&#xD;
+    &#xD;
+UNION ALL&#xD;
+&#xD;
+SELECT &#xD;
+    BAZ.Baz_Nazwa [Baza Firmowa], &#xD;
+    CASE WHEN BuE_Miesiac IS NULL THEN NULL ELSE SUBSTRING(convert(varchar,BuE_Miesiac), 1,4) + &#x27;&#x27;-&#x27;&#x27; + SUBSTRING(convert(varchar,BuE_Miesiac), 5,6) + &#x27;&#x27;-01&#x27;&#x27; END [Data Księgowania Dzień],&#xD;
+    ISNULL( SUBSTRING(convert(varchar,BuE_Miesiac), 1,4), 0) [Data Księgowania Rok], &#xD;
+    NULL [Data Księgowania Kwartał], ISNULL( SUBSTRING(convert(varchar,BuE_Miesiac), 5,6), 0) [Data Księgowania Miesiąc], &#xD;
+&#xD;
+    CASE &#xD;
+     WHEN (BuE_Miesiac%100 = MONTH(GETDATE())-1) AND ((BuE_Miesiac/100) = YEAR(GETDATE())) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     WHEN (((BuE_Miesiac%100) = 12) AND (MONTH(GETDATE()) = 1)) AND ((BuE_Miesiac/100) = YEAR(GETDATE()) - 1) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Księgowania Miesiąc Poprzedni],&#xD;
+&#xD;
+    CASE WHEN BuE_Miesiac = YEAR(GETDATE())*100 + MONTH(GETDATE()) THEN &#x27;&#x27;TAK&#x27;&#x27; &#xD;
+     ELSE &#x27;&#x27;NIE&#x27;&#x27; &#xD;
+    END [Data Księgowania Miesiąc Bieżący],&#xD;
+&#xD;
+    NULL [Data Księgowania Tydzień Roku],&#xD;
+    NULL [Data Wystawienia Dzień],  NULL [Data Wystawienia Rok], &#xD;
+    NULL [Data Wystawienia Kwartał], NULL [Data Wystawienia Miesiąc], NULL [Data Wystawienia Miesiąc Poprzedni], NULL [Data Wystawienia Miesiąc Bieżący],&#xD;
+    NULL [Data Wystawienia Tydzień Roku],&#xD;
+    NULL [Data Operacji Dzień], NULL [Data Operacji Rok], &#xD;
+    NULL [Data Operacji Kwartał], NULL [Data Operacji Miesiąc], NULL [Data Operacji Miesiąc Poprzedni], NULL [Data Operacji Miesiąc Bieżący], &#xD;
+    NULL [Data operacji Tydzień Roku],&#xD;
+    GETDATE() [Data Analizy],&#xD;
+    OOb_Symbol [Okres obrachunkowy], &#xD;
+    &#xD;
+    NULL [Dokument Numer], &#xD;
+    26006 [Dokument Numer __PROCID__KH__], Acc_AccId [Dokument Numer __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Dokument Numer __DATABASE__],&#xD;
+    &#xD;
+    NULL [Dokument Element Numer], &#x27;&#x27;Zatwierdzone&#x27;&#x27; [Dokument Bufor],&#xD;
+    NULL [Dziennik], NULL [Dziennik Numer], NULL [Identyfikator Księgowy], poz.nazwa [Konto pełny numer], NULL [Konto Przeciwstawne],&#xD;
+    NULL [Kategoria Szczegółowa z Elementu], NULL [Kategoria Szczegółowa z Nagłówka], &#xD;
+    NULL [Kategoria Ogólna z Elementu], NULL [Kategoria Ogólna z Nagłówka],&#xD;
+    NULL [Dokument Opis z Elementu], NULL [Dokument Opis z Nagłówka],&#xD;
+    NULL [Podmiot Pierwotny Typ], &#xD;
+    &#xD;
+    NULL [Podmiot Pierwotny Kod], &#xD;
+    26006 [Podmiot Pierwotny Kod __PROCID__Kontrahenci__], Acc_AccId [Podmiot Pierwotny Kod __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Pierwotny Kod __DATABASE__],&#xD;
+    &#xD;
+    NULL [Podmiot Pierwotny Nazwa], &#xD;
+    26006 [Podmiot Pierwotny Nazwa __PROCID__Kontrahenci__], Acc_AccId [Podmiot Pierwotny Nazwa __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Pierwotny Nazwa __DATABASE__],&#xD;
+    &#xD;
+    NULL [Podmiot Pierwotny NIP],&#xD;
+    NULL [Podmiot Pierwotny Kraj],&#xD;
+    NULL [Podmiot Pierwotny Województwo], NULL [Podmiot Pierwotny Powiat],NULL [Podmiot Pierwotny Gmina],&#xD;
+    NULL [Podmiot Pierwotny Miasto], NULL [Podmiot Pierwotny z Pozycji],&#xD;
+    NULL [Podmiot Typ], &#xD;
+    NULL [Podmiot Kod], &#xD;
+    26006 [Podmiot Kod __PROCID__Kontrahenci__], Acc_AccId [Podmiot Kod __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Kod __DATABASE__],&#xD;
+    NULL [Podmiot Nazwa], &#xD;
+    26006 [Podmiot Nazwa __PROCID__Kontrahenci__], Acc_AccId [Podmiot Nazwa __ORGID__],&#x27;&#x27;&#x27;+@bazaFirmowa+&#x27;&#x27;&#x27; [Podmiot Nazwa __DATABASE__],&#xD;
+    NULL [Podmiot NIP],&#xD;
+    NULL [Podmiot Kraj],&#xD;
+    NULL [Podmiot Województwo], NULL [Podmiot Powiat],NULL [Podmiot Gmina],&#xD;
+    NULL [Podmiot Miasto], NULL [Podmiot z Pozycji],&#xD;
+    NULL [Operator Wprowadzający], NULL [Operator Modyfikujący],&#xD;
+    &#x27;&#x27;TAK&#x27;&#x27; AS [Rodzaj],&#xD;
+    CASE WHEN Acc_TypKonta = 6 THEN &#x27;&#x27;Pozabilansowe&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 5 THEN &#x27;&#x27;Koszty&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 4 THEN &#x27;&#x27;Przychody&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 3 THEN &#x27;&#x27;Aktywno pasywne&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 2 THEN &#x27;&#x27;Pasywa&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 1 THEN &#x27;&#x27;Aktywa&#x27;&#x27;&#xD;
+    ELSE &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27; END AS [Konto Typ],&#xD;
+    CASE WHEN Acc_TypKonta = 6 THEN &#x27;&#x27;Pozabilansowe&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 5 OR Acc_TypKonta = 4  THEN &#x27;&#x27;Wynikowe&#x27;&#x27;&#xD;
+         WHEN Acc_TypKonta = 3 OR Acc_TypKonta = 2 OR Acc_TypKonta = 1 THEN &#x27;&#x27;Bilansowe&#x27;&#x27;&#xD;
+    ELSE &#x27;&#x27;(NIEPRZYPISANY)&#x27;&#x27; END AS [Konto Typy],&#xD;
+    CASE WHEN Acc_KontrolaBudzetu = 0 THEN &#x27;&#x27;Brak&#x27;&#x27;&#xD;
+         WHEN Acc_KontrolaBudzetu = 1 THEN &#x27;&#x27;Obroty Wn&#x27;&#x27; &#xD;
+         WHEN Acc_KontrolaBudzetu = 2 Then &#x27;&#x27;obroty Ma&#x27;&#x27;&#xD;
+    END [Kontrola budżetu],&#xD;
+    CASE WHEN Acc_Rozrachunkowe = 1 THEN &#x27;&#x27;TAK&#x27;&#x27; ELSE &#x27;&#x27;NIE&#x27;&#x27; END AS [Konto Rozrachunkowe],&#xD;
+    CASE WHEN Acc_Waluta = &#x27;&#x27;&#x27;&#x27; THEN @Wal ELSE Acc_Waluta END [Waluta],&#xD;
+    NULL [Obroty Winien], NULL [Obroty Ma], NULL [Obroty Winien Waluta], NULL [Obroty Ma Waluta],&#xD;
+    NULL AS [Bilans Otwarcia Ma], NULL  AS [Bilans Otwarcia Winien],&#xD;
+    NULL [Bilans Otwarcia Ma Waluta], NULL [Bilans Otwarcia Winien Waluta],&#xD;
+    CASE WHEN Acc_KontrolaBudzetu = 1 THEN BuE_Kwota ELSE NULL END [Plan Wn], &#xD;
+    CASE WHEN Acc_KontrolaBudzetu = 2 THEN BuE_Kwota ELSE NULL END [Plan Ma]&#xD;
+    &#x27; + @kolumny +&#xD;
+&#x27; FROM CDN.Konta&#xD;
+    LEFT JOIN #tmpTwrGr Poz ON Acc_AccId = Poz.gid&#xD;
+    LEFT JOIN CDN.OkresyObrach ON Acc_OObId = OOb_OObID&#xD;
+    JOIN CDN.BudzetNag ON Acc_AccId = BuN_AccId&#xD;
+    JOIN CDN.BudzetElem ON BuE_BuNId = BuN_BuNId &#xD;
+    LEFT JOIN &#x27;+ @Bazy +&#x27; BAZ ON DB_NAME() = BAZ.Baz_NazwaBazy AND BAZ.Baz_NazwaSerwera = SERVERPROPERTY(&#x27;&#x27;ServerName&#x27;&#x27;) and baz.baz_nieaktywna = 0&#xD;
+    WHERE BuN_Finalny = 1&#xD;
+  AND Oob_OobId  IN (SELECT OOBID FROM #OOB)&#xD;
+&#xD;
+) AS ks&#x27;&#xD;
+&#xD;
+--print(@select)&#xD;
+exec(@select)&#xD;
+&#xD;
+drop Table #tmpTwrGr    &#xD;
+drop Table #oob&#xD;
+&#xD;
+&#xD;
+&#xD;
+</a:textData>
+                        <a:timestamp/>
+                        <a:type>MdxQuery</a:type>
+                    </b:Value>
+                </b:KeyValueOfReportDataTypeReportDataBrNSYbaE>
+                <b:KeyValueOfReportDataTypeReportDataBrNSYbaE>
+                    <b:Key>SubCube</b:Key>
+                    <b:Value>
+                        <a:binaryData/>
+                        <a:textData/>
+                        <a:timestamp/>
+                        <a:type>SubCube</a:type>
+                    </b:Value>
+                </b:KeyValueOfReportDataTypeReportDataBrNSYbaE>
+            </a:definitions>
+            <a:description></a:description>
+            <a:id>8939</a:id>
+            <a:isPredefinedReport>false</a:isPredefinedReport>
+            <a:language>pl-PL</a:language>
+            <a:mainLinkName>Księgowości (KK)</a:mainLinkName>
+            <a:modifiedOn>2025-10-28T19:32:55.032</a:modifiedOn>
+            <a:path xmlns:b="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+                <b:string>Raporty Zaimportowane</b:string>
+            </a:path>
+            <a:predefinedReport i:nil="true"/>
+            <a:serverName>SERWEROPTIMA\SUL02</a:serverName>
+            <a:sourceDbType>Main</a:sourceDbType>
+            <a:standardReportHash i:nil="true"/>
+            <a:standardReportId i:nil="true"/>
+            <a:standardReportVersion i:nil="true"/>
+            <a:type>DevXpressMdxSql</a:type>
+            <a:useDefaultConnection>false</a:useDefaultConnection>
+            <a:useInMemory>true</a:useInMemory>
+            <a:viewType i:nil="true"/>
+            <a:webServicePort>80</a:webServicePort>
+            <a:contexts/>
+      <a:connections>
+                <a:ReportConnection>
+                    <a:biType>0</a:biType>
+                    <a:connectionType>MSSQL_User</a:connectionType>
+                    <a:database>CDN_Ulex_2018_temp</a:database>
+                    <a:isDefault>true</a:isDefault>
+                    <a:isDelated>false</a:isDelated>
+                    <a:name>Ulex_2018_temp</a:name>
+                    <a:openTimeout>-1</a:openTimeout>
+                    <a:password>Sek33MacesM=</a:password>
+                    <a:port>-1</a:port>
+                    <a:queryTimeout>-1</a:queryTimeout>
+                    <a:server>SERWEROPTIMA\SUL02</a:server>
+                    <a:userId/>
+                </a:ReportConnection>
+            </a:connections>
+        </a:Report>
+    </Reports>
+    <UsePasswordsEncryption>true</UsePasswordsEncryption>
+</ReportsList>

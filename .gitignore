@@ -1,0 +1,33 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Editor
+.vscode/
+.idea/
+
+# Build
+build/
+dist/
+*.egg-info/
+
+# Tests / coverage
+.coverage
+.pytest_cache/
+
+# Logs
+logs/
+*.log
+
+# Binary / exe
+*.exe
+*.dll
+*.so
+
+# Examples large data
+examples/
