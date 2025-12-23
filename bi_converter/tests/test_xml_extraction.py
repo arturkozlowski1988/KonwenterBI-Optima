@@ -137,11 +137,19 @@ def test_write_sql_reports(tmp_path: Path):
     assert all(p.exists() for p in outputs)
     
     # Check filenames and content
-    extracted = {path.name: path.read_text(encoding="utf-8").strip() for path in outputs}
-    assert "Raport_1.sql" in extracted
-    assert "Raport_2.sql" in extracted
-    assert extracted["Raport_1.sql"] == "SELECT 1;"
-    assert extracted["Raport_2.sql"] == "SELECT 2;"
+    extracted = {path.name: path.read_text(encoding="utf-8") for path in outputs}
+    
+    # Check that both files were created with expected names
+    assert "Raport 1.sql" in extracted
+    assert "Raport 2.sql" in extracted
+    
+    # Verify that report names appear in headers
+    assert "NAZWA RAPORTU: Raport 1" in extracted["Raport 1.sql"]
+    assert "NAZWA RAPORTU: Raport 2" in extracted["Raport 2.sql"]
+    
+    # Verify SQL content is present
+    assert "SELECT 1;" in extracted["Raport 1.sql"]
+    assert "SELECT 2;" in extracted["Raport 2.sql"]
 
 
 def test_roundtrip_sql_to_xml_to_sql(tmp_path: Path):
@@ -176,7 +184,10 @@ def test_roundtrip_sql_to_xml_to_sql(tmp_path: Path):
     assert len(outputs) == 1
     extracted = outputs[0].read_text(encoding="utf-8").replace('\r\n', '\n')
     
-    # Verify content preserved
+    # Verify header with report name is present
+    assert 'NAZWA RAPORTU:' in extracted
+    
+    # Verify content preserved (original SQL should be in the extracted file)
     assert 'DECLARE @PARAM1 INT = 100;' in extracted
     assert 'SELECT' in extracted
     assert '@PARAM1 AS [Wartość]' in extracted or '@PARAM1 AS [Wartosc]' in extracted  # encoding variations
@@ -328,3 +339,52 @@ def test_duplicate_names(tmp_path: Path):
     # One should be "Raport.sql", other "Raport_2.sql"
     assert "Raport.sql" in filenames
     assert "Raport_2.sql" in filenames
+
+
+def test_report_header_format(tmp_path: Path):
+    """Test that extracted SQL files contain properly formatted header with report name"""
+    xml_content = dedent("""\
+        <?xml version="1.0" encoding="utf-8"?>
+        <ReportsList xmlns="http://schemas.datacontract.org/2004/07/Comarch.Msp.ReportsBook.BusinessLogic"
+                     xmlns:a="http://schemas.datacontract.org/2004/07/Comarch.Msp.ReportsBook.BusinessInterface.Entities"
+                     xmlns:b="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+          <Reports>
+            <a:Report>
+              <a:name>Analiza Sprzedaży Q1 2024</a:name>
+              <a:definitions>
+                <b:KeyValueOfReportDataTypeReportDataBrNSYbaE>
+                  <b:Key>MdxQuery</b:Key>
+                  <b:Value>
+                    <a:textData>SELECT TOP 10 * FROM Sprzedaz WHERE Data &gt;= '2024-01-01';</a:textData>
+                  </b:Value>
+                </b:KeyValueOfReportDataTypeReportDataBrNSYbaE>
+              </a:definitions>
+            </a:Report>
+          </Reports>
+        </ReportsList>
+    """)
+    
+    xml_file = tmp_path / "test_header.xml"
+    xml_file.write_text(xml_content, encoding="utf-8")
+    
+    conv = ComarchBIConverter()
+    outputs = conv.write_sql_reports(str(xml_file), str(tmp_path))
+    
+    assert len(outputs) == 1
+    content = outputs[0].read_text(encoding="utf-8")
+    
+    # Verify header structure
+    assert content.startswith("/*")
+    assert "NAZWA RAPORTU: Analiza Sprzedaży Q1 2024" in content
+    assert "NUMER RAPORTU: 1" in content
+    assert "ŹRÓDŁO: test_header.xml" in content
+    assert "DATA EKSTRAKCJI:" in content
+    assert "*/" in content
+    
+    # Verify SQL content after header
+    assert "SELECT TOP 10 * FROM Sprzedaz WHERE Data >= '2024-01-01';" in content
+    
+    # Verify the header comes before the SQL
+    header_end = content.index("*/")
+    sql_start = content.index("SELECT")
+    assert header_end < sql_start

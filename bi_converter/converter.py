@@ -981,7 +981,15 @@ class ComarchBIConverter:
             filename = self._build_report_filename(report['name'], report['index'], used_names)
             target = base_dir / f"{filename}.sql"
             
-            target.write_text(report['sql'], encoding="utf-8")
+            # Create SQL content with header containing report name
+            sql_content = self._format_sql_with_header(
+                report['sql'], 
+                report['name'], 
+                report['index'],
+                xml_file_path
+            )
+            
+            target.write_text(sql_content, encoding="utf-8")
             written.append(target)
             self.logger.info(f"Wrote SQL for report '{report['name'] or filename}' to {target}")
         
@@ -1007,3 +1015,68 @@ class ComarchBIConverter:
         
         used.add(candidate.lower())
         return candidate
+
+    def _format_sql_with_header(self, sql_text: str, report_name: str, report_index: int, source_xml: str) -> str:
+        """
+        Format SQL content with a header comment containing report metadata.
+        
+        Args:
+            sql_text: The SQL query text
+            report_name: Name of the report from XML
+            report_index: Index/number of the report in the XML file
+            source_xml: Path to source XML file
+            
+        Returns:
+            Formatted SQL with header comment
+        """
+        # If report name is empty, try to extract from SQL metadata comments
+        if not report_name or not report_name.strip():
+            name_from_sql = self._extract_report_name_from_sql(sql_text)
+            if name_from_sql:
+                report_name = name_from_sql
+        
+        source_file = Path(source_xml).name
+        extraction_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Build header comment
+        header_lines = [
+            "/*",
+            " * =" * 40,
+            f" * NAZWA RAPORTU: {report_name if report_name else '(bez nazwy)'}",
+            f" * NUMER RAPORTU: {report_index}",
+            f" * ŹRÓDŁO: {source_file}",
+            f" * DATA EKSTRAKCJI: {extraction_date}",
+            " * =" * 40,
+            " */",
+            ""
+        ]
+        
+        header = "\n".join(header_lines)
+        
+        # Combine header with SQL
+        return f"{header}\n{sql_text}"
+    
+    def _extract_report_name_from_sql(self, sql_text: str) -> Optional[str]:
+        """
+        Extract report name from SQL metadata comments if present.
+        Looks for patterns like:
+        * NAZWA_RAPORTU: Some Report Name
+        * Raport: Some Report Name
+        
+        Args:
+            sql_text: The SQL query text
+            
+        Returns:
+            Extracted report name or None
+        """
+        # Try to find NAZWA_RAPORTU in comments
+        match = re.search(r'\*\s*NAZWA_RAPORTU\s*:\s*([^\n]+)', sql_text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+        
+        # Try to find "Raport:" pattern
+        match = re.search(r'\*\s*Raport\s*:\s*([^\n]+)', sql_text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+        
+        return None
