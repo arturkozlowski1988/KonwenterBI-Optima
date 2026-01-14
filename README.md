@@ -1,6 +1,6 @@
 # Comarch BI Converter (Python package)
 
-**Wersja 2.4** - Dwukierunkowy konwerter SQL ↔ XML z professional UX i zoptymalizowaną wydajnością
+**Wersja 2.5** - Robust SQL Parsing & Formatting
 
 This package provides a high-performance bidirectional converter for Comarch Analizy BI with professional user experience:
 
@@ -30,13 +30,37 @@ This package provides a high-performance bidirectional converter for Comarch Ana
     - **Multi-select**: Wybierz wiele plików SQL jednocześnie (Shift/Ctrl)
     - **Batch conversion**: Automatyczna konwersja wielu plików do jednego XML
     - **Multi-file preview**: Podgląd metadanych wszystkich wybranych plików w zakładkach
+    - **🖋️ Formatuj SQL**: Nowa funkcja formatowania kodu SQL w miejscu (tworzy kopię zapasową .bak)
   - **XML → SQL** - ekstrakcja zapytań z XML z podglądem
 - **🔄 Progress bar** - wizualny feedback podczas operacji
-- **✅ SQL validation** - pre-flight checks przed konwersją
+- **✅ SQL validation** - pre-flight checks przed konwersją (teraz oparte na `sqlparse`)
 - **🔍 XML preview** - podgląd zawartości przed ekstrakcją
 - **Non-blocking GUI** - threading dla responsywności
 - Logging to rotating file logs/app.log and console
 - CLI entry point dla automatyzacji
+
+---
+
+## Co nowego w v2.5?
+
+### 🛠️ Robust SQL Analysis (Solidna analiza SQL)
+
+Wersja 2.5 wprowadza fundamentalne zmiany w silniku analizy SQL:
+
+1.  **Nowy silnik parsowania (`sqlparse`)**
+    *   Zastąpiono wyrażenia regularne profesjonalną biblioteką parsującą.
+    *   Lepsza obsługa komentarzy wewnątrz zapytań.
+    *   Precyzyjne wykrywanie aliasów kolumn i parametrów.
+    *   Bezpieczniejsza walidacja składni.
+
+2.  **🖋️ Formatowanie SQL**
+    *   Przycisk "Formatuj SQL" w GUI.
+    *   Automatycznie porządkuje wcięcia i wielkość liter (Keywords UPPERCASE).
+    *   Tworzy kopię zapasową (`.bak`) przed zmianą pliku.
+
+3.  **Refaktoryzacja kodu**
+    *   Wydzielony moduł `sql_analyzer.py`.
+    *   Poprawione testy jednostkowe.
 
 ---
 

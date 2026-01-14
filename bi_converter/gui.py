@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Callable
 from .converter import ComarchBIConverter, ConversionError
 from .logging_conf import get_logger
 from .settings import load_settings, save_settings
+from .sql_analyzer import format_sql
 
 
 class ProgressWindow:
@@ -688,6 +689,7 @@ class ConverterGUI:
         action_frame = tk.Frame(frm)
         action_frame.grid(row=6, column=0, columnspan=3, sticky="w", **pad)
         ttk.Button(action_frame, text="🔍 Podgląd metadanych", command=self._preview).pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Button(action_frame, text="🖋️ Formatuj SQL", command=self._format_sql).pack(side=tk.LEFT, padx=(0, 8))
         ttk.Button(action_frame, text="⚙️ Konwertuj", command=self._run).pack(side=tk.LEFT)
         
         # Status label
@@ -793,6 +795,52 @@ class ConverterGUI:
         thread.start()
         self.root.after(100, check_completion)
     
+    def _format_sql(self):
+        """Format selected SQL file(s) in place with backup"""
+        if not self.sql_files:
+            sql_path = self.sql_var.get().strip()
+            if not sql_path:
+                messagebox.showwarning("Brak pliku", "Wskaż plik(i) .sql")
+                return
+            files = [sql_path]
+        else:
+            files = self.sql_files
+
+        count = 0
+        try:
+            for fpath in files:
+                p = Path(fpath)
+                try:
+                    text = p.read_text(encoding='utf-8')
+                except Exception:
+                     # fallback
+                    try:
+                        text = p.read_text(encoding='cp1250')
+                    except Exception:
+                        continue
+
+                formatted = format_sql(text)
+
+                if formatted != text:
+                    # Create backup
+                    backup = p.with_suffix('.sql.bak')
+                    p.write_text(text, encoding='utf-8') # Write original to backup (or rename)
+                    p.rename(backup)
+
+                    # Write formatted
+                    p.write_text(formatted, encoding='utf-8')
+                    count += 1
+
+            if count > 0:
+                messagebox.showinfo("Sukces", f"Sformatowano {count} plików. Oryginały zapisano jako .bak")
+                self.sql_status_var.set(f"Sformatowano {count} plików.")
+            else:
+                 messagebox.showinfo("Info", "Pliki nie wymagały formatowania lub nie udało się ich odczytać.")
+
+        except Exception as e:
+            self.logger.error(f"Format failed: {e}")
+            messagebox.showerror("Błąd", f"Błąd formatowania: {e}")
+
     def _preview_xml(self):
         """Show XML reports preview window"""
         xml_path = self.xml_file_var.get().strip()
