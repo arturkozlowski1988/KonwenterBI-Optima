@@ -54,7 +54,7 @@ def validate_sql(sql_text: str) -> Tuple[bool, List[str]]:
         # Let's check tokens of the last statement
         last_stmt = parsed[-1]
         if not any(t.ttype is DML and t.value.upper() == 'SELECT' for t in last_stmt.flatten()):
-             warnings.append("⚠️ Brak instrukcji SELECT - to nie wygląda na zapytanie")
+             warnings.append("🚨 Brak instrukcji SELECT - to nie wygląda na zapytanie")
 
     # Check 2: Dangerous commands
     forbidden = {'DROP', 'TRUNCATE', 'DELETE', 'UPDATE', 'INSERT', 'ALTER', 'GRANT', 'REVOKE'}
