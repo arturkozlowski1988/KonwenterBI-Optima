@@ -440,7 +440,7 @@ def main():
         "raporty magazyny.xml",
         "raporty zakupy.xml",
         "raporty wzorcowe optima.xml",
-        "Magaqzyn.xml",
+        "Magaqzyn.xml",  # Note: filename uses 'Magaqzyn' as it appears in the repository
         "Sprzedaż.xml",
         "raporty sprzedaży.xml"
     ]
