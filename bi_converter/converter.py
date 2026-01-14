@@ -24,6 +24,7 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 from xml.etree import ElementTree as ET
 
 from .logging_conf import get_logger
+from .sql_analyzer import extract_columns as parse_columns, extract_parameters as parse_parameters, validate_sql as check_sql
 
 
 class ConversionError(Exception):
@@ -174,33 +175,13 @@ class ComarchBIConverter:
     # Extraction: columns
     # ---------------------------
     def extract_columns(self, sql_text: str) -> List[ColumnDef]:
-        self.logger.debug("Extracting columns")
-        names: List[str] = []
+        self.logger.debug("Extracting columns via sqlparse")
 
-        # 1) Capture aliases with AS [Name]
-        for m in re.finditer(r"\bAS\s*\[([^\]]+)\]", sql_text, re.IGNORECASE):
-            names.append(m.group(1))
+        raw_cols = parse_columns(sql_text)
 
-        # 2) Capture bracketed aliases without AS, like: expr [Alias]
-        # Use a heuristic: closing token followed by space and [Alias]
-        for m in re.finditer(r"\]\s*\[([^\]]+)\]", sql_text):
-            # Too broad; skip - this is typically ][; we won't use this
-            pass
-
-        # Better: find patterns like: (anything non-\n)\s\[Alias with spaces/diacritics]\b
-        # But avoid table/column references like [schema].[table]
-        for m in re.finditer(r"(?<!\.)\s\[([^\]]+)\]", sql_text):
-            alias = m.group(1)
-            # Filter common keywords that are not column captions in code contexts
-            if self._filter_column_name(alias):
-                names.append(alias)
-
-        # Deduplicate while preserving order
-        names = self._unique_preserve(names)
-
-        # Build ColumnDef list with basic heuristics
         cols: List[ColumnDef] = []
-        for name in names:
+        for c in raw_cols:
+            name = c['name']
             if not self._filter_column_name(name):
                 continue
             ctype = self._detect_column_type(name)
@@ -254,69 +235,42 @@ class ComarchBIConverter:
         return ('Tekst', 'Text')
 
     def extract_parameters(self, sql_text: str) -> List[ParamDef]:
-        self.logger.debug("Extracting parameters")
-        params: List[ParamDef] = []
-        declared_names: Set[str] = set()
+        self.logger.debug("Extracting parameters via sqlparse")
 
-        # Handle multi-variable DECLARE lines as well as single ones, with or without defaults.
-        # Example:
-        #   DECLARE @A INT, @B NVARCHAR(50) = 'x', @C DATE;
-        #   DECLARE @Rok INT = 2024
-        for m in re.finditer(r"(?im)^\s*DECLARE\s+(.+?)(?:;|$)", sql_text):
-            decl_body = m.group(1)
-            for tok in re.finditer(r"@(?P<name>\w+)\s+(?P<type>[A-Za-z]+(?:\([^\)]*\))?)\s*(?:=\s*(?P<default>[^,\n;]+))?", decl_body):
-                name = tok.group('name')
-                sql_type = tok.group('type')
-                default = (tok.group('default') or '').strip()
-                p_type, p_bi = self._map_sql_type(sql_type)
+        raw_params = parse_parameters(sql_text)
+        params: List[ParamDef] = []
+
+        for p in raw_params:
+            if p['declared']:
+                p_type, p_bi = self._map_sql_type(p['sql_type'])
                 params.append(ParamDef(
-                    name=name.upper(),
-                    label=name.upper(),
+                    name=p['name'],
+                    label=p['name'],
                     type=p_type,
                     paramType=p_bi,
-                    defaultValue=default,
+                    defaultValue=p['default'],
                     minValue=0 if p_type == 'Liczba' else None,
                     maxValue=999999 if p_type == 'Liczba' else None,
                     precision=0 if p_type == 'Liczba' else None,
                     step=1 if p_type == 'Liczba' else None,
-                    declared=True,
+                    declared=True
                 ))
-                declared_names.add(name.upper())
+            else:
+                p_type, p_bi = self._infer_type_from_name(p['name'])
+                params.append(ParamDef(
+                    name=p['name'],
+                    label=p['name'],
+                    type=p_type,
+                    paramType=p_bi,
+                    defaultValue=p['default'],
+                    minValue=0 if p_type == 'Liczba' else None,
+                    maxValue=999999 if p_type == 'Liczba' else None,
+                    precision=0 if p_type == 'Liczba' else None,
+                    step=1 if p_type == 'Liczba' else None,
+                    declared=False
+                ))
 
-        # Variables used but not declared (potential BI params)
-        used_vars = set(x.upper() for x in re.findall(r"@([A-Za-z0-9_]+)", sql_text))
-        internal_exclusions = {
-            'BAZAFIRMOWA', 'INPUT', 'DZISIEJSZADATA',
-            # common builder vars
-            'SQL', 'SQLA', 'SQLB', 'SQLC', 'SELECT', 'SELECT2', 'KOLUMNY', 'I', 'WERSJA', 'OPERATORZY', 'BAZY', 'SERWERKONF', 'BAZAKONF',
-            'POZIOM', 'POZIOM_MAX', 'FETCH_STATUS', 'ATRYBUT_ID', 'ATRYBUT_KOD', 'ATRYBUT_TYP', 'ATRYBUT_FORMAT', 'ATRYBUTYTWR', 'ATRYBUTYZAS', 'ATRYBUTYZAS2', 'BRAK'
-        }
-        for name in sorted(used_vars - declared_names):
-            # Consider as potential BI params if:
-            # - they look like PARAM* or PRZEDZIAL*, OR
-            # - they are well-known BI params (e.g., DATAOD/DATADO, etc.)
-            looks_like_param = name.startswith('PARAM') or re.fullmatch(r'PRZEDZIAL\d+', name)
-            is_known_param = name in self.known_params
-            if not (looks_like_param or is_known_param):
-                continue
-            # Skip internal variables unless explicitly known
-            if name in internal_exclusions and not is_known_param:
-                continue
-            p_type, p_bi = self._infer_type_from_name(name)
-            params.append(ParamDef(
-                name=name,
-                label=name,
-                type=p_type,
-                paramType=p_bi,
-                defaultValue='',
-                minValue=0 if p_type == 'Liczba' else None,
-                maxValue=999999 if p_type == 'Liczba' else None,
-                precision=0 if p_type == 'Liczba' else None,
-                step=1 if p_type == 'Liczba' else None,
-                declared=False,
-            ))
-
-        self.logger.info(f"Detected {len(params)} parameters (declared: {len(declared_names)}, inferred: {len(params)-len(declared_names)})")
+        self.logger.info(f"Detected {len(params)} parameters")
         return params
 
     def detect_interactive_params(self, params: List[ParamDef]) -> List[ParamDef]:
@@ -458,91 +412,23 @@ class ComarchBIConverter:
         """
         Perform pre-flight validation on SQL code.
         Returns (is_valid, list_of_warnings).
-        
-        Checks:
-        1. Presence of SELECT statement
-        2. Columns with aliases (AS [name])
-        3. Undeclared variables used in queries
-        4. Dangerous commands (DROP, TRUNCATE, DELETE without WHERE)
-        5. Encoding issues (non-ASCII characters)
         """
-        warnings: List[str] = []
+        # Use sql_analyzer for validation
+        is_valid, warnings = check_sql(sql_text)
         
-        # Check 1: SELECT present
-        if not re.search(r'\bSELECT\b', sql_text, re.IGNORECASE):
-            warnings.append("⚠️ Brak instrukcji SELECT - to nie wygląda na zapytanie")
-        
-        # Check 2: Columns with aliases
+        # Additional business logic check for columns
         columns = self.extract_columns(sql_text)
         if len(columns) == 0:
             warnings.append("⚠️ Nie znaleziono kolumn z aliasami (AS [nazwa]) - Comarch BI może nie działać")
-        elif len(columns) < 3:
+            # If no columns are found, this is often critical for BI
+            if is_valid: # Downgrade valid status if previously valid
+                 # We consider it a soft warning unless it strictly breaks XML.
+                 # But in previous code it was a warning.
+                 pass
+
+        if len(columns) > 0 and len(columns) < 3:
             warnings.append(f"ℹ️ Znaleziono tylko {len(columns)} kolumn - sprawdź czy to wystarczy")
-        
-        # Check 3: Undeclared variables
-        # Find all @variables in DECLARE statements
-        declared = set()
-        # Match DECLARE lines and extract all @variables from them
-        for declare_line_match in re.finditer(r'\bDECLARE\s+.*', sql_text, re.IGNORECASE):
-            declare_line = declare_line_match.group(0)
-            # Find all @variable names in this DECLARE line
-            for var_match in re.finditer(r'@(\w+)', declare_line):
-                declared.add(f"@{var_match.group(1).upper()}")
-        
-        # Find used variables (after DECLARE section)
-        sql_after_declares = sql_text
-        declare_end = 0
-        for m in re.finditer(r'\bDECLARE\s+', sql_text, re.IGNORECASE):
-            declare_end = max(declare_end, m.end())
-        if declare_end > 0:
-            sql_after_declares = sql_text[declare_end:]
-        
-        used = set()
-        for m in re.finditer(r'@(\w+)', sql_after_declares):
-            var_name = f"@{m.group(1).upper()}"
-            var_name_no_at = m.group(1).upper()  # Without @ for comparison with known_params
-            # Check if variable is declared or is a known BI parameter
-            if var_name not in declared and var_name_no_at not in self.known_params:
-                used.add(var_name)
-        
-        if used:
-            warnings.append(f"⚠️ Niezadeklarowane zmienne: {', '.join(sorted(used))}")
-        
-        # Check 4: Dangerous commands
-        dangerous = []
-        # DROP TABLE - but allow temporary tables (#tmp)
-        if re.search(r'\bDROP\s+(TABLE|DATABASE|VIEW|PROCEDURE|FUNCTION)\s+(?!#)', sql_text, re.IGNORECASE):
-            dangerous.append("DROP")
-        if re.search(r'\bTRUNCATE\s+TABLE\s+(?!#)', sql_text, re.IGNORECASE):
-            dangerous.append("TRUNCATE")
-        # DELETE without WHERE - check more carefully
-        # Look for DELETE FROM ... that doesn't have WHERE anywhere after FROM
-        delete_matches = re.finditer(r'\bDELETE\s+FROM\s+(\w+)', sql_text, re.IGNORECASE)
-        for dm in delete_matches:
-            # Get text after DELETE FROM table_name
-            pos = dm.end()
-            rest = sql_text[pos:pos+500]  # Check next 500 chars
-            if not re.search(r'\bWHERE\b', rest, re.IGNORECASE):
-                dangerous.append("DELETE bez WHERE")
-                break
-        
-        if dangerous:
-            warnings.append(f"🚨 UWAGA! Niebezpieczne komendy: {', '.join(dangerous)}")
-        
-        # Check 5: Encoding issues
-        try:
-            sql_text.encode('utf-8')
-        except UnicodeEncodeError as e:
-            warnings.append(f"⚠️ Problem z kodowaniem znaków: {e}")
-        
-        # Check for BOM or special characters
-        if '\ufeff' in sql_text:
-            warnings.append("ℹ️ Wykryto BOM (Byte Order Mark) - zostanie usunięty przy konwersji")
-        
-        # Determine if valid (no critical warnings)
-        critical = any('🚨' in w or 'Brak instrukcji SELECT' in w for w in warnings)
-        is_valid = not critical
-        
+
         return is_valid, warnings
 
     def convert(self, sql_file_path: str, connection_config: Dict[str, str]) -> str:
