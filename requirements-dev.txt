@@ -3,3 +3,4 @@ pytest-cov
 pyinstaller
 mypy
 flake8
+-r requirements.txt
