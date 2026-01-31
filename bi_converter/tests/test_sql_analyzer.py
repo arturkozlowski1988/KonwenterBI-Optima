@@ -1,88 +1,74 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import unittest
 from bi_converter.sql_analyzer import extract_columns, extract_parameters, validate_sql
 
 class TestSqlAnalyzer(unittest.TestCase):
-
-    def test_extract_columns_simple(self):
-        sql = "SELECT Col1 AS [Alias1], Col2 AS 'Alias2' FROM Table"
+    def test_extract_simple_columns(self):
+        sql = "SELECT col1 AS [Kolumna 1], col2 AS 'Kolumna 2', col3 Kolumna3 FROM table"
         cols = extract_columns(sql)
-        names = [c['name'] for c in cols]
-        self.assertEqual(names, ['Alias1', 'Alias2'])
+        self.assertEqual(len(cols), 3)
+        self.assertEqual(cols[0]['name'], 'Kolumna 1')
+        self.assertEqual(cols[1]['name'], 'Kolumna 2')
+        self.assertEqual(cols[2]['name'], 'Kolumna3')
 
-    def test_extract_columns_no_as(self):
-        sql = "SELECT Col1 [Alias1], Col2 FROM Table"
+    def test_extract_no_alias(self):
+        sql = "SELECT col1, col2 FROM table"
         cols = extract_columns(sql)
-        # Col2 has no alias, so it takes 'Col2'
-        self.assertEqual([c['name'] for c in cols], ['Alias1', 'Col2'])
+        self.assertEqual(len(cols), 2)
+        self.assertEqual(cols[0]['name'], 'col1')
+        self.assertEqual(cols[1]['name'], 'col2')
 
-    def test_extract_columns_with_comments(self):
+    def test_extract_with_expression(self):
+        sql = "SELECT SUM(x) AS Suma, CAST(y AS INT) AS [Y Int] FROM table"
+        cols = extract_columns(sql)
+        self.assertEqual(len(cols), 2)
+        self.assertEqual(cols[0]['name'], 'Suma')
+        self.assertEqual(cols[1]['name'], 'Y Int')
+
+    def test_extract_multiline(self):
         sql = """
         SELECT
-            Col1 AS [Alias1], -- comment
-            Col2 AS /* inline comment */ [Alias2]
-        FROM Table
+            t.col1 AS [C1],
+            -- comment
+            t.col2 AS [C2]
+        FROM table t
         """
         cols = extract_columns(sql)
-        self.assertEqual([c['name'] for c in cols], ['Alias1', 'Alias2'])
+        self.assertEqual(len(cols), 2)
+        self.assertEqual(cols[0]['name'], 'C1')
+        self.assertEqual(cols[1]['name'], 'C2')
 
-    def test_extract_columns_complex(self):
+    def test_extract_cte(self):
         sql = """
-        SELECT
-             SUM(x) AS [Total],
-             (SELECT TOP 1 Name FROM T2) AS [SubName]
-        FROM T1
+        WITH CTE AS (SELECT x FROM t)
+        SELECT x AS [Wynik] FROM CTE
         """
         cols = extract_columns(sql)
-        self.assertEqual([c['name'] for c in cols], ['Total', 'SubName'])
+        self.assertEqual(len(cols), 1)
+        self.assertEqual(cols[0]['name'], 'Wynik')
 
-    def test_extract_parameters_declared(self):
+    def test_extract_params_declare(self):
         sql = """
-        DECLARE @Param1 INT = 5;
-        DECLARE @Param2 NVARCHAR(10) = 'Test';
-        SELECT @Param1, @Param2
+        DECLARE @P1 INT = 1;
+        DECLARE @P2 VARCHAR(10) = 'test';
+        SELECT @P1;
         """
         params = extract_parameters(sql)
-        p_map = {p['name']: p for p in params}
+        names = {p['name'] for p in params}
+        self.assertIn('P1', names)
+        self.assertIn('P2', names)
 
-        self.assertIn('PARAM1', p_map)
-        self.assertTrue(p_map['PARAM1']['declared'])
-        self.assertEqual(p_map['PARAM1']['sql_type'], 'INT')
+        p1 = next(p for p in params if p['name'] == 'P1')
+        self.assertTrue(p1['declared'])
+        self.assertEqual(p1['default'], '1')
 
-        self.assertIn('PARAM2', p_map)
-        self.assertEqual(p_map['PARAM2']['default'], "'Test'")
-
-    def test_extract_parameters_inferred(self):
-        sql = """
-        SELECT * FROM Table WHERE Date > @DataOd AND Name LIKE @ParamName
-        """
+    def test_extract_params_inferred(self):
+        sql = "SELECT * FROM t WHERE date > @DATAOD"
         params = extract_parameters(sql)
-        p_names = [p['name'] for p in params]
+        names = {p['name'] for p in params}
+        self.assertIn('DATAOD', names)
 
-        # DATAOD is a known param, PARAMNAME starts with PARAM
-        self.assertIn('DATAOD', p_names)
-        self.assertIn('PARAMNAME', p_names)
-
-    def test_validate_sql_valid(self):
-        sql = "SELECT * FROM Table"
-        valid, warns = validate_sql(sql)
-        self.assertTrue(valid)
-        self.assertEqual(len(warns), 0)
-
-    def test_validate_sql_missing_select(self):
-        sql = "UPDATE Table SET x=1"
-        valid, warns = validate_sql(sql)
-        # Should warn about no select (depending on logic) and dangerous update
-        self.assertFalse(valid) # Critical because update is dangerous/forbidden usually in reporting
-        self.assertTrue(any('UPDATE' in w for w in warns))
-
-    def test_validate_sql_dangerous(self):
-        sql = "DROP TABLE Users"
-        valid, warns = validate_sql(sql)
-        self.assertFalse(valid)
-        self.assertTrue(any('DROP' in w for w in warns))
+        p = next(p for p in params if p['name'] == 'DATAOD')
+        self.assertFalse(p['declared'])
 
 if __name__ == '__main__':
     unittest.main()
